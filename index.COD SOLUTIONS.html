@@ -22,7 +22,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyArez95Xa4fr0M3hT3K_xMEQLvREwgHWaU",
@@ -53,6 +53,7 @@
         window.doc = doc;
         window.setDoc = setDoc;
         window.getDoc = getDoc;
+        window.deleteDoc = deleteDoc;
     </script>
 
     <!-- Monaco Editor Loader -->
@@ -134,7 +135,7 @@
                 <span class="font-semibold tracking-wide text-gray-200">COD SOLUTIONS</span>
             </div>
             <div class="flex items-center gap-4">
-                <button onclick="publishToCommunity()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs flex items-center gap-2 transition">
+                <button onclick="publishToCommunity()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs flex items-center gap-2 transition shadow-lg">
                     <i class="fa-solid fa-share-nodes"></i> Compartilhar Projeto
                 </button>
                 <div class="flex items-center gap-2 border-l border-gray-600 pl-4">
@@ -149,24 +150,25 @@
         <div class="flex flex-1 overflow-hidden">
             
             <!-- SIDEBAR -->
-            <div class="vscode-sidebar w-64 flex flex-col flex-shrink-0">
+            <div class="vscode-sidebar w-[300px] flex flex-col flex-shrink-0">
                 <!-- TABS LATERAL -->
                 <div class="flex border-b border-[#333]">
                     <button id="tab-files" onclick="switchSidebarTab('files')" class="flex-1 py-2 text-center text-xs font-semibold tab-active">
                         <i class="fa-regular fa-folder-open mr-1"></i> Ficheiros
                     </button>
                     <button id="tab-community" onclick="switchSidebarTab('community')" class="flex-1 py-2 text-center text-xs font-semibold tab-inactive">
-                        <i class="fa-solid fa-globe mr-1"></i> Comunidade
+                        <i class="fa-solid fa-users mr-1"></i> Comunidade
                     </button>
                 </div>
 
                 <!-- CONTEÚDO: ARQUIVOS (R2) -->
                 <div id="sidebar-files" class="flex-1 overflow-y-auto p-2 flex flex-col">
-                    <div class="flex justify-between items-center mb-3 px-1">
+                    <div class="flex justify-between items-center mb-3 px-1 mt-1">
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Meu Espaço</span>
                         <div class="flex gap-2">
-                            <button onclick="createNewFile()" class="text-gray-400 hover:text-white" title="Novo Ficheiro"><i class="fa-solid fa-file-circle-plus"></i></button>
-                            <label class="cursor-pointer text-gray-400 hover:text-white" title="Subir Pasta">
+                            <button onclick="createNewFileInFolder('')" class="text-gray-400 hover:text-white" title="Novo Ficheiro na Raíz"><i class="fa-solid fa-file-circle-plus"></i></button>
+                            <button onclick="openNewFolderModal('')" class="text-gray-400 hover:text-white" title="Nova Pasta na Raíz"><i class="fa-solid fa-folder-plus"></i></button>
+                            <label class="cursor-pointer text-gray-400 hover:text-white" title="Subir Pasta do PC">
                                 <i class="fa-solid fa-upload"></i>
                                 <input type="file" id="folder-upload" webkitdirectory directory multiple class="hidden" onchange="uploadFolder(event)">
                             </label>
@@ -174,17 +176,19 @@
                         </div>
                     </div>
                     
-                    <div id="file-list" class="flex flex-col gap-1 text-[13px]">
-                        <!-- Arquivos renderizados via JS -->
+                    <div id="file-list" class="flex flex-col text-[13px] font-mono">
+                        <!-- Árvore de Ficheiros renderizada via JS -->
                         <div class="text-gray-500 text-xs italic p-2 text-center">Carregando ficheiros...</div>
                     </div>
                 </div>
 
                 <!-- CONTEÚDO: COMUNIDADE (FIRESTORE) -->
-                <div id="sidebar-community" class="hidden-element flex-1 overflow-y-auto p-2 bg-[#1e1e1e]">
-                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">Projetos da Comunidade</div>
-                    <div id="community-list" class="flex flex-col gap-3">
-                        <!-- Cards de projetos renderizados via JS -->
+                <div id="sidebar-community" class="hidden-element flex-1 overflow-y-auto p-3 bg-[#181818] shadow-inner">
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-globe text-blue-500"></i> Projetos Públicos
+                    </div>
+                    <div id="community-list" class="flex flex-col gap-5">
+                        <!-- Cards de perfis renderizados via JS -->
                     </div>
                 </div>
             </div>
@@ -197,7 +201,7 @@
                         <!-- Renderizadas dinamicamente via renderTabs() -->
                     </div>
                     <!-- Área flex-1 preenche o vazio para o duplo clique funcionar perfeitamente -->
-                    <div class="flex-1 cursor-pointer" ondblclick="createNewFile()" title="Duplo clique para novo ficheiro"></div>
+                    <div class="flex-1 cursor-pointer" ondblclick="createNewFileInFolder('')" title="Duplo clique para novo ficheiro na raíz"></div>
                     
                     <div class="flex items-center px-3 border-l border-[#333] gap-3">
                         <button onclick="saveCurrentFile()" class="text-gray-400 hover:text-white" title="Salvar manualmente (Ctrl+S)"><i class="fa-solid fa-save"></i></button>
@@ -285,7 +289,7 @@
         </footer>
     </div>
 
-    <!-- MODAIS CUSTOMIZADOS (Substituem os Prompts) -->
+    <!-- MODAIS CUSTOMIZADOS -->
     <div id="custom-modal-backdrop" class="fixed inset-0 bg-black/60 z-[100] hidden-element flex items-center justify-center">
         
         <!-- Modal: Novo Ficheiro -->
@@ -310,7 +314,22 @@
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
-                    <button onclick="confirmNewFile()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition text-sm">Criar</button>
+                    <button onclick="confirmNewFile()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition text-sm">Criar / Salvar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Nova Pasta -->
+        <div id="new-folder-modal" class="hidden-element bg-[#252526] p-6 rounded-lg shadow-2xl w-96 border border-[#333]">
+            <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-folder-plus text-yellow-500"></i> Nova Pasta</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">Nome da pasta</label>
+                    <input type="text" id="new-folder-input" onkeydown="if(event.key === 'Enter') confirmNewFolder()" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" placeholder="ex: css, js, components">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
+                    <button onclick="confirmNewFolder()" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition text-sm">Criar</button>
                 </div>
             </div>
         </div>
@@ -330,10 +349,10 @@
             </div>
         </div>
 
-        <!-- Modal: Eliminar Ficheiro -->
+        <!-- Modal: Eliminar Ficheiro / Pasta / Projeto -->
         <div id="delete-modal" class="hidden-element bg-[#252526] p-6 rounded-lg shadow-2xl w-96 border border-[#333]">
-            <h2 class="text-red-500 text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Apagar Ficheiro</h2>
-            <p class="text-gray-300 text-sm mb-4">Tem a certeza que deseja apagar <span id="delete-file-name" class="font-bold text-white"></span>?</p>
+            <h2 class="text-red-500 text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation"></i> Apagar Item</h2>
+            <p class="text-gray-300 text-sm mb-4">Tem a certeza que deseja apagar <span id="delete-file-name" class="font-bold text-white break-words"></span>?</p>
             <p class="text-gray-500 text-xs mb-4">Esta ação não pode ser desfeita.</p>
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
@@ -359,7 +378,7 @@
     </div>
 
     <!-- Modais e Notificações (Toasts) -->
-    <div id="toast" class="fixed bottom-10 right-10 bg-[#007acc] border border-[#005f9e] text-white px-5 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-[110] flex items-center gap-3 font-semibold text-sm">
+    <div id="toast" class="fixed bottom-10 right-10 bg-[#007acc] border border-[#005f9e] text-white px-5 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-[110] flex items-center gap-3 font-semibold text-sm pointer-events-none">
         <i class="fa-solid fa-circle-info"></i>
         <span id="toast-msg">Mensagem</span>
     </div>
@@ -367,14 +386,11 @@
     <!-- SCRIPTS E LÓGICA DO APP -->
     <script>
         // --- INTERCEPTADOR DE VISUALIZAÇÃO PÚBLICA (SUB-LINK) ---
-        // Transforma o Vercel App num visualizador em tempo real dos seus ficheiros no R2
         const urlParams = new URLSearchParams(window.location.search);
         const viewPath = urlParams.get('view');
         const R2_PUB_URL = 'https://pub-263c6a7252164111a104a68e6835cfc4.r2.dev';
 
         if (viewPath) {
-            // Em vez de substituir o body diretamente, criamos um iframe de ecrã inteiro
-            // Isso evita que o navegador bloqueie scripts modernos e módulos carregados no HTML
             document.documentElement.innerHTML = '<head><title>Prévia - COD SOLUTIONS</title><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #ffffff; }</style></head><body><iframe id="live-iframe" style="width: 100%; height: 100%; border: none;"></iframe></body>';
             
             fetch(`${R2_PUB_URL}/${viewPath}`)
@@ -383,7 +399,6 @@
                     return res.text();
                 })
                 .then(html => {
-                    // INJEÇÃO DA TAG BASE PARA CARREGAR ASSETS (CSS/JS Relativos) CORRETAMENTE
                     const baseUrlPath = viewPath.substring(0, viewPath.lastIndexOf('/') + 1);
                     const baseUrl = `${R2_PUB_URL}/${baseUrlPath}`;
                     const baseTag = `<base href="${baseUrl}">`;
@@ -394,7 +409,6 @@
                         html = baseTag + html;
                     }
 
-                    // Renderiza de forma segura usando um Blob, igual à prévia interna do editor
                     const iframe = document.getElementById('live-iframe');
                     const blob = new Blob([html], { type: 'text/html' });
                     const url = URL.createObjectURL(blob);
@@ -406,12 +420,10 @@
                     document.body.innerHTML = '<div style="color:#ff6b6b;text-align:center;font-family:sans-serif;padding-top: 50px;"><h2>Erro 404</h2><p>O arquivo não foi encontrado no servidor.</p><p style="font-size:12px;color:#aaa;">Certifique-se de que o ficheiro existe e foi salvo no editor.</p></div>';
                 });
                 
-            // Interrompe o carregamento do restante do código do Editor
             throw new Error("Modo de visualização ativado. Parando o carregamento do editor principal.");
         }
 
         // --- CONFIGURAÇÃO AWS R2 (Cloudflare) ---
-        // AVISO: Usar chaves secretas no front-end é perigoso para produção.
         const R2_ACCOUNT_ID = '2ece542306d80259e71a793d20f91a60';
         const R2_BUCKET = 'test03';
 
@@ -427,22 +439,27 @@
         // --- VARIÁVEIS GLOBAIS ---
         let currentUser = null;
         let editorInstance = null;
-        let currentFileKey = 'index.html';
-        let localFiles = []; // Cache dos arquivos do usuário
-        let openTabs = []; // Cache de ficheiros abertos (Abas)
+        let currentFileKey = ''; 
+        let localFiles = []; 
+        let openTabs = []; 
         let previewDebounce = null;
         let autoSaveDebounce = null;
-        let isLoadingFile = false; // Impede auto-save indesejado ao trocar de arquivo
-        let fileToRename = ''; // Guarda o nome do ficheiro alvo
-        let fileToDelete = ''; // Guarda o nome do ficheiro alvo
+        let isLoadingFile = false; 
+        let fileToRename = ''; 
+        let fileToDelete = ''; 
+        let projectToDelete = ''; 
+        let currentFolderContext = ''; 
 
         const defaultHTML = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <title>Meu Projeto COD SOLUTIONS</title>
-  <!-- Exemplo de como um CSS externo agora funciona: -->
-  <link rel="stylesheet" href="style.css">
+  <!-- <link rel="stylesheet" href="style.css"> -->
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    h1 { color: #007acc; }
+  </style>
 </head>
 <body>
   <h1>Olá, Mundo!</h1>
@@ -450,13 +467,28 @@
 </body>
 </html>`;
 
+        // Função segura para aplicar o texto no editor sem causar bugs no Monaco WebWorkers
+        function setEditorValue(content, lang) {
+            if (!editorInstance) return;
+            isLoadingFile = true;
+            
+            const oldModel = editorInstance.getModel();
+            const newModel = monaco.editor.createModel(content || '', lang || 'plaintext');
+            
+            editorInstance.setModel(newModel);
+            if (oldModel) oldModel.dispose(); 
+            if (lang) updateLanguageDisplay(lang);
+            
+            isLoadingFile = false;
+        }
+
         // --- INICIALIZAÇÃO DO MONACO EDITOR ---
         window.onload = function() {
             setTimeout(() => {
                 if(window.monaco) {
                     editorInstance = monaco.editor.create(document.getElementById('editor-container'), {
-                        value: defaultHTML,
-                        language: 'html',
+                        value: '/* A carregar ambiente... */',
+                        language: 'plaintext',
                         theme: 'vs-dark',
                         automaticLayout: true,
                         minimap: { enabled: false },
@@ -464,25 +496,22 @@
                     });
 
                     editorInstance.onDidChangeModelContent(() => {
-                        if (isLoadingFile) return; // Ignora alterações geradas pela leitura do ficheiro
+                        if (isLoadingFile) return; 
 
                         document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle text-yellow-400 mr-1"></i> Modificado';
                         
-                        // Atualização em tempo real (Real-time Preview)
                         const panel = document.getElementById('preview-panel');
                         if (!panel.classList.contains('hidden-element')) {
                             clearTimeout(previewDebounce);
-                            previewDebounce = setTimeout(updatePreview, 600); // Aguarda 600ms após parar de digitar
+                            previewDebounce = setTimeout(updatePreview, 600); 
                         }
 
-                        // Salvamento Automático no R2 (Auto-save)
                         clearTimeout(autoSaveDebounce);
                         autoSaveDebounce = setTimeout(() => {
-                            saveCurrentFile(true); // Envia o sinal de que é um auto-save
-                        }, 1500); // Salva 1.5s após parar de digitar
+                            saveCurrentFile(true); 
+                        }, 1500); 
                     });
                     
-                    // Atalho Ctrl+S
                     editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
                         saveCurrentFile();
                     });
@@ -510,7 +539,6 @@
                         document.getElementById('app-screen').classList.add('hidden-element');
                         document.getElementById('auth-screen').classList.remove('hidden-element');
                         
-                        // Reseta os botões caso o usuário tenha deslogado
                         const btnLogin = document.getElementById('btn-login');
                         if(btnLogin) {
                             btnLogin.innerHTML = 'Entrar';
@@ -529,20 +557,18 @@
         
         function openModal(modalId) {
             document.getElementById('custom-modal-backdrop').classList.remove('hidden-element');
-            document.getElementById('new-file-modal').classList.add('hidden-element');
-            document.getElementById('publish-modal').classList.add('hidden-element');
-            document.getElementById('rename-modal').classList.add('hidden-element');
-            document.getElementById('delete-modal').classList.add('hidden-element');
-            
-            const targetModal = document.getElementById(modalId);
-            targetModal.classList.remove('hidden-element');
+            const modals = ['new-file-modal', 'publish-modal', 'rename-modal', 'delete-modal', 'new-folder-modal'];
+            modals.forEach(id => document.getElementById(id).classList.add('hidden-element'));
+            document.getElementById(modalId).classList.remove('hidden-element');
         }
 
         function closeModal() {
             document.getElementById('custom-modal-backdrop').classList.add('hidden-element');
             document.getElementById('new-filename-input').value = '';
+            document.getElementById('new-folder-input').value = '';
             document.getElementById('publish-title-input').value = '';
             document.getElementById('rename-input').value = '';
+            projectToDelete = '';
         }
 
         function showError(msg) {
@@ -559,8 +585,6 @@
             if (error.code === 'auth/popup-closed-by-user') return "Login com Google cancelado.";
             if (error.code === 'auth/invalid-email') return "O formato do e-mail é inválido.";
             if (error.code === 'auth/weak-password') return "A senha é muito fraca. Tente uma com 6 letras ou mais.";
-            
-            console.error("Erro Firebase Crítico:", error);
             return "Erro: " + error.message;
         }
 
@@ -568,17 +592,10 @@
             try {
                 const userRef = window.doc(window.firebaseDb, "users", user.uid);
                 const userSnap = await window.getDoc(userRef);
-                
                 if (!userSnap.exists()) {
-                    await window.setDoc(userRef, {
-                        email: user.email,
-                        uid: user.uid,
-                        createdAt: new Date().toISOString()
-                    });
+                    await window.setDoc(userRef, { email: user.email, uid: user.uid, createdAt: new Date().toISOString() });
                 }
-            } catch (error) {
-                console.error("Erro ao inicializar coleção users:", error);
-            }
+            } catch (error) { console.error(error); }
         }
 
         async function handleLogin() {
@@ -587,11 +604,8 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
             btn.disabled = true;
-
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
             try {
-                await window.signInWithEmailAndPassword(window.firebaseAuth, email, pass);
+                await window.signInWithEmailAndPassword(window.firebaseAuth, document.getElementById('email').value, document.getElementById('password').value);
             } catch (error) {
                 showError(translateAuthError(error));
                 btn.innerHTML = originalText;
@@ -605,17 +619,10 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Criando...';
             btn.disabled = true;
-
-            const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
-            if(pass.length < 6) {
-                showError("A senha deve ter pelo menos 6 caracteres.");
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-                return;
-            }
+            if(pass.length < 6) { showError("A senha deve ter pelo menos 6 caracteres."); btn.innerHTML = originalText; btn.disabled = false; return; }
             try {
-                await window.createUserWithEmailAndPassword(window.firebaseAuth, email, pass);
+                await window.createUserWithEmailAndPassword(window.firebaseAuth, document.getElementById('email').value, pass);
                 showToast("Conta criada com sucesso!");
             } catch (error) {
                 showError(translateAuthError(error));
@@ -630,10 +637,8 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-gray-600"></i> Conectando...';
             btn.disabled = true;
-
-            const provider = new window.GoogleAuthProvider();
             try {
-                await window.signInWithPopup(window.firebaseAuth, provider);
+                await window.signInWithPopup(window.firebaseAuth, new window.GoogleAuthProvider());
             } catch (error) {
                 showError(translateAuthError(error));
                 btn.innerHTML = originalText;
@@ -641,33 +646,24 @@
             }
         }
 
-        function logout() {
-            window.signOut(window.firebaseAuth);
-        }
+        function logout() { window.signOut(window.firebaseAuth); }
 
         // --- LÓGICA DO EDITOR E PREVIEW ---
         function updatePreview() {
             if(!editorInstance) return;
             let code = editorInstance.getValue();
-            
-            // Injeção de script para capturar erros e enviar para o nosso Console
             const consoleInterceptor = `
             <script>
-                window.onerror = function(message, source, lineno, colno, error) {
-                    window.parent.postMessage({type: 'console', level: 'error', message: message + ' (Linha: ' + lineno + ')'}, '*');
-                    return true;
-                };
+                window.onerror = function(message, source, lineno, colno, error) { window.parent.postMessage({type: 'console', level: 'error', message: message + ' (Linha: ' + lineno + ')'}, '*'); return true; };
                 const _log = console.log, _error = console.error, _warn = console.warn;
                 console.log = function(...args) { window.parent.postMessage({type: 'console', level: 'log', message: args.join(' ')}, '*'); _log.apply(console, args); };
                 console.error = function(...args) { window.parent.postMessage({type: 'console', level: 'error', message: args.join(' ')}, '*'); _error.apply(console, args); };
                 console.warn = function(...args) { window.parent.postMessage({type: 'console', level: 'warn', message: args.join(' ')}, '*'); _warn.apply(console, args); };
             <\/script>`;
             
-            // Injeção da tag BASE para o preview interno ler recursos do R2 (ex: style.css)
             let folderPath = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
             const baseUrl = `${R2_PUB_URL}/users/${currentUser.uid}/${folderPath}`;
             const baseTag = `<base href="${baseUrl}">`;
-
             const headInjections = baseTag + consoleInterceptor;
 
             if (code.toLowerCase().includes('<head>')) {
@@ -679,7 +675,6 @@
             const iframe = document.getElementById('preview-iframe');
             const blob = new Blob([code], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
-            
             iframe.onload = () => URL.revokeObjectURL(url);
             iframe.src = url;
         }
@@ -688,9 +683,7 @@
             if (e.data && e.data.type === 'console') {
                 const output = document.getElementById('console-output');
                 const msgDiv = document.createElement('div');
-                msgDiv.className = 'border-b border-[#333] py-1 ' + 
-                    (e.data.level === 'error' ? 'text-red-500 font-bold' : 
-                     e.data.level === 'warn' ? 'text-yellow-500' : 'text-gray-300');
+                msgDiv.className = 'border-b border-[#333] py-1 ' + (e.data.level === 'error' ? 'text-red-500 font-bold' : e.data.level === 'warn' ? 'text-yellow-500' : 'text-gray-300');
                 msgDiv.textContent = '> ' + e.data.message;
                 output.appendChild(msgDiv);
                 output.scrollTop = output.scrollHeight;
@@ -703,233 +696,289 @@
             if (editorInstance) setTimeout(() => editorInstance.layout(), 100);
         }
 
-        function clearConsole() {
-            document.getElementById('console-output').innerHTML = '';
-        }
+        function clearConsole() { document.getElementById('console-output').innerHTML = ''; }
         
         function updateLiveUrlDisplay() {
-            if (!currentUser || !currentFileKey) return;
-            // Gera um link com a propriedade ?view para o site Vercel atuar como visualizador
+            if (!currentUser || !currentFileKey) {
+                document.getElementById('preview-url-bar').textContent = 'Nenhum ficheiro aberto';
+                return;
+            }
             const liveUrl = window.location.origin + window.location.pathname + '?view=users/' + currentUser.uid + '/' + currentFileKey;
             document.getElementById('preview-url-bar').textContent = liveUrl;
         }
 
         function openLiveLink() {
             if (!currentUser || !currentFileKey) return;
-            // Abre o Sub-Link real gerado no navegador
-            const liveUrl = window.location.origin + window.location.pathname + '?view=users/' + currentUser.uid + '/' + currentFileKey;
-            window.open(liveUrl, '_blank');
+            window.open(window.location.origin + window.location.pathname + '?view=users/' + currentUser.uid + '/' + currentFileKey, '_blank');
         }
 
         function setPreviewSize(size) {
             const iframe = document.getElementById('preview-iframe');
             const panel = document.getElementById('preview-panel');
             const wrapper = document.getElementById('preview-wrapper');
-            const btnDesktop = document.getElementById('btn-desktop');
-            const btnTablet = document.getElementById('btn-tablet');
-            const btnMobile = document.getElementById('btn-mobile');
-
-            const baseClass = "px-2 py-0.5 rounded text-xs transition ";
-            const activeClass = "bg-white shadow-sm text-blue-600";
-            const inactiveClass = "text-gray-500 hover:text-blue-600";
-
-            btnDesktop.className = baseClass + (size === 'desktop' ? activeClass : inactiveClass);
-            btnTablet.className = baseClass + (size === 'tablet' ? activeClass : inactiveClass);
-            btnMobile.className = baseClass + (size === 'mobile' ? activeClass : inactiveClass);
+            
+            document.getElementById('btn-desktop').className = "px-2 py-0.5 rounded text-xs transition " + (size === 'desktop' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-blue-600");
+            document.getElementById('btn-tablet').className = "px-2 py-0.5 rounded text-xs transition " + (size === 'tablet' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-blue-600");
+            document.getElementById('btn-mobile').className = "px-2 py-0.5 rounded text-xs transition " + (size === 'mobile' ? "bg-white shadow-sm text-blue-600" : "text-gray-500 hover:text-blue-600");
 
             if (size === 'desktop') {
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
-                panel.style.width = '50%'; 
-                
-                // Remove estilos de dispositivo móvel e preenche o ecrã inteiro
+                iframe.style.width = '100%'; iframe.style.height = '100%'; panel.style.width = '50%'; 
                 wrapper.className = "flex-1 bg-white flex justify-center overflow-auto items-start p-0 relative transition-all duration-300";
                 iframe.className = "bg-white transition-all duration-300";
             } else {
-                // Adiciona o fundo cinza escuro, padding e sombra simulando dispositivo
                 wrapper.className = "flex-1 bg-gray-300 flex justify-center overflow-auto items-start p-4 relative transition-all duration-300";
                 iframe.className = "border border-gray-400 bg-white shadow-2xl transition-all duration-300";
-                
-                if (size === 'tablet') {
-                    iframe.style.width = '768px';
-                    iframe.style.height = '1024px';
-                    panel.style.width = '820px'; 
-                } else if (size === 'mobile') {
-                    iframe.style.width = '375px';
-                    iframe.style.height = '667px';
-                    panel.style.width = '420px'; 
-                }
+                if (size === 'tablet') { iframe.style.width = '768px'; iframe.style.height = '1024px'; panel.style.width = '820px'; } 
+                else if (size === 'mobile') { iframe.style.width = '375px'; iframe.style.height = '667px'; panel.style.width = '420px'; }
             }
-            
-            if (editorInstance) {
-                setTimeout(() => editorInstance.layout(), 350); 
-            }
+            if (editorInstance) setTimeout(() => editorInstance.layout(), 350); 
         }
 
         function togglePreview() {
             const panel = document.getElementById('preview-panel');
             if (panel.classList.contains('hidden-element')) {
-                panel.classList.remove('hidden-element');
-                setPreviewSize('desktop'); 
-                updatePreview();
-            } else {
-                panel.classList.add('hidden-element');
-            }
-            
-            if (editorInstance) {
-                setTimeout(() => editorInstance.layout(), 350);
-            }
+                panel.classList.remove('hidden-element'); setPreviewSize('desktop'); updatePreview();
+            } else { panel.classList.add('hidden-element'); }
+            if (editorInstance) setTimeout(() => editorInstance.layout(), 350);
         }
 
         function showToast(message) {
             const toast = document.getElementById('toast');
             document.getElementById('toast-msg').textContent = message;
-            toast.style.transform = 'translateY(0)';
-            toast.style.opacity = '1';
-            setTimeout(() => {
-                toast.style.transform = 'translateY(40px)';
-                toast.style.opacity = '0';
-            }, 3000);
+            toast.style.transform = 'translateY(0)'; toast.style.opacity = '1';
+            setTimeout(() => { toast.style.transform = 'translateY(40px)'; toast.style.opacity = '0'; }, 3000);
         }
 
         // --- SISTEMA DE ARQUIVOS R2 ---
         
-        function getR2Prefix() {
-            return `users/${currentUser.uid}/`;
-        }
+        function getR2Prefix() { return `users/${currentUser.uid}/`; }
 
         async function loadUserWorkspace() {
-            document.getElementById('file-list').innerHTML = '<div class="text-center p-2 text-gray-500">Carregando ficheiros...</div>';
+            document.getElementById('file-list').innerHTML = '<div class="text-center p-2 text-gray-500"><i class="fa-solid fa-spinner fa-spin"></i><br>Carregando...</div>';
             try {
-                const params = {
-                    Bucket: R2_BUCKET,
-                    Prefix: getR2Prefix()
-                };
-                
+                const params = { Bucket: R2_BUCKET, Prefix: getR2Prefix() };
                 const data = await s3.listObjectsV2(params).promise();
                 localFiles = data.Contents || [];
                 
-                renderFileList();
+                renderFileListTree();
                 
                 if (localFiles.length === 0) {
                     await saveToR2('index.html', defaultHTML);
                     await loadUserWorkspace();
-                } else {
-                    const indexFile = localFiles.find(f => f.Key.endsWith('index.html')) || localFiles[0];
-                    if(indexFile) loadFileFromR2(indexFile.Key.replace(getR2Prefix(), ''));
+                } else if(!currentFileKey) {
+                    const indexFile = localFiles.find(f => f.Key.endsWith('index.html')) || localFiles.find(f => !f.Key.endsWith('.keep') && f.Key !== getR2Prefix());
+                    if(indexFile) {
+                        loadFileFromR2(indexFile.Key.replace(getR2Prefix(), ''));
+                    } else {
+                        setEditorValue('/* Crie ou abra um ficheiro para começar */', 'plaintext');
+                    }
                 }
             } catch (error) {
                 console.error("Erro R2:", error);
-                document.getElementById('file-list').innerHTML = `<div class="text-red-400 p-2 text-xs text-center">Erro ao conectar R2. Verifique CORS e Chaves.</div>`;
+                document.getElementById('file-list').innerHTML = `<div class="text-red-400 p-2 text-xs text-center">Erro ao conectar R2.</div>`;
             }
         }
 
-        function renderFileList() {
+        // RENDERIZAR EM ÁRVORE DE PASTAS
+        function renderFileListTree() {
             const list = document.getElementById('file-list');
             list.innerHTML = '';
             
             if (localFiles.length === 0) {
-                list.innerHTML = '<div class="text-gray-500 text-xs text-center">Nenhum ficheiro</div>';
-                return;
+                list.innerHTML = '<div class="text-gray-500 text-xs text-center">Nenhum ficheiro</div>'; return;
             }
 
+            const tree = {};
             localFiles.forEach(file => {
-                const fileName = file.Key.replace(getR2Prefix(), '');
-                const ext = fileName.split('.').pop();
-                let icon = 'fa-file-code text-blue-400';
-                if(ext === 'css') icon = 'fa-css3 text-blue-300';
-                if(ext === 'js') icon = 'fa-js text-yellow-400';
-
-                const isCurrent = fileName === currentFileKey;
-
-                const div = document.createElement('div');
-                div.className = `file-item flex items-center px-2 py-1.5 rounded gap-2 group ${isCurrent ? 'bg-[#37373d]' : ''}`;
-                div.onclick = () => loadFileFromR2(fileName);
+                const path = file.Key.replace(getR2Prefix(), '');
+                if(!path) return;
+                const parts = path.split('/');
+                let current = tree;
                 
-                div.innerHTML = `
-                    <i class="fa-solid ${icon} w-4 text-center"></i>
-                    <span class="truncate flex-1 ${isCurrent ? 'text-white' : 'text-gray-400'}">${fileName}</span>
-                    <div class="hidden group-hover:flex items-center gap-2 pr-1">
-                        <button onclick="event.stopPropagation(); openRenameModal('${fileName}')" class="text-gray-400 hover:text-blue-400 transition" title="Mudar Nome"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                        <button onclick="event.stopPropagation(); openDeleteModal('${fileName}')" class="text-gray-400 hover:text-red-400 transition" title="Apagar"><i class="fa-solid fa-trash text-[10px]"></i></button>
-                    </div>
-                `;
-                list.appendChild(div);
+                parts.forEach((part, index) => {
+                    if(!part) return; 
+                    const isFile = (index === parts.length - 1) && !file.Key.endsWith('/');
+                    
+                    if(isFile) {
+                        if(!current[part]) current[part] = { type: 'file', path: path, name: part };
+                    } else {
+                        const folderPath = parts.slice(0, index + 1).join('/');
+                        if(!current[part]) current[part] = { type: 'folder', children: {}, name: part, path: folderPath };
+                        current = current[part].children;
+                    }
+                });
             });
+
+            function renderNode(node, container, depth = 0) {
+                const keys = Object.keys(node).sort((a, b) => {
+                    if (node[a].type === node[b].type) return a.localeCompare(b);
+                    return node[a].type === 'folder' ? -1 : 1; 
+                });
+
+                keys.forEach(key => {
+                    const item = node[key];
+                    if (item.type === 'file' && item.name === '.keep') return; 
+
+                    const div = document.createElement('div');
+                    const padding = depth * 12 + 8;
+
+                    if(item.type === 'folder') {
+                        div.className = `flex flex-col`;
+                        const folderHeader = document.createElement('div');
+                        folderHeader.className = `flex items-center py-1.5 hover:bg-[#37373d] cursor-pointer text-gray-300 group`;
+                        folderHeader.style.paddingLeft = padding + 'px';
+                        folderHeader.innerHTML = `
+                            <i class="fa-solid fa-chevron-down text-[10px] w-4 text-center mr-1 transition-transform"></i>
+                            <i class="fa-solid fa-folder text-yellow-500 w-4 text-center mr-1"></i>
+                            <span class="truncate flex-1 text-xs">${item.name}</span>
+                            <div class="hidden group-hover:flex items-center gap-2 pr-2">
+                                <button onclick="event.stopPropagation(); createNewFileInFolder('${item.path}')" class="text-gray-400 hover:text-white" title="Novo Ficheiro Aqui"><i class="fa-solid fa-file-circle-plus text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); openNewFolderModal('${item.path}')" class="text-gray-400 hover:text-white" title="Nova Pasta Aqui"><i class="fa-solid fa-folder-plus text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); openDeleteModal('${item.path}/')" class="text-gray-400 hover:text-red-400" title="Apagar Pasta"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                            </div>
+                        `;
+                        const childrenContainer = document.createElement('div');
+                        childrenContainer.className = 'flex flex-col';
+
+                        folderHeader.onclick = () => {
+                            const icon = folderHeader.querySelector('.fa-chevron-down');
+                            if (childrenContainer.classList.contains('hidden')) {
+                                childrenContainer.classList.remove('hidden'); icon.style.transform = 'rotate(0deg)';
+                            } else {
+                                childrenContainer.classList.add('hidden'); icon.style.transform = 'rotate(-90deg)';
+                            }
+                        };
+
+                        div.appendChild(folderHeader); div.appendChild(childrenContainer);
+                        container.appendChild(div);
+                        renderNode(item.children, childrenContainer, depth + 1);
+                    } else {
+                        const isCurrent = item.path === currentFileKey;
+                        const ext = item.name.split('.').pop().toLowerCase();
+                        let icon = 'fa-file-code text-blue-400';
+                        if(ext === 'css') icon = 'fa-css3 text-blue-300';
+                        if(ext === 'js' || ext === 'ts') icon = 'fa-js text-yellow-400';
+                        if(ext === 'html') icon = 'fa-html5 text-orange-500';
+
+                        div.className = `file-item flex items-center py-1.5 rounded gap-1 group ${isCurrent ? 'bg-[#37373d]' : ''}`;
+                        div.style.paddingLeft = padding + 'px';
+                        div.onclick = () => loadFileFromR2(item.path);
+                        div.innerHTML = `
+                            <i class="fa-brands ${icon} w-4 text-center ml-4"></i>
+                            <span class="truncate flex-1 text-xs ${isCurrent ? 'text-white' : 'text-gray-400'}">${item.name}</span>
+                            <div class="hidden group-hover:flex items-center gap-2 pr-2">
+                                <button onclick="event.stopPropagation(); openRenameModal('${item.path}')" class="text-gray-400 hover:text-blue-400 transition" title="Mudar Nome"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); openDeleteModal('${item.path}')" class="text-gray-400 hover:text-red-400 transition" title="Apagar Ficheiro"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    }
+                });
+            }
+            renderNode(tree, list);
         }
 
         // --- LÓGICA DE ELIMINAR E MUDAR NOME ---
         function openRenameModal(fileName) {
             fileToRename = fileName;
             openModal('rename-modal');
-            document.getElementById('rename-input').value = fileName;
+            document.getElementById('rename-input').value = fileName.split('/').pop(); 
             setTimeout(() => document.getElementById('rename-input').focus(), 100);
         }
 
         async function confirmRename() {
-            const newName = document.getElementById('rename-input').value.trim();
-            if (!newName || newName === fileToRename) { closeModal(); return; }
+            const newNameRaw = document.getElementById('rename-input').value.trim();
+            if (!newNameRaw) { closeModal(); return; }
+            
+            const folderPath = fileToRename.includes('/') ? fileToRename.substring(0, fileToRename.lastIndexOf('/') + 1) : '';
+            const newName = folderPath + newNameRaw;
+            
+            if (newName === fileToRename) { closeModal(); return; }
+            
             closeModal();
             showToast("A alterar o nome...");
 
             try {
-                // 1. Obtém conteúdo atual
                 const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + fileToRename };
                 const data = await s3.getObject(params).promise();
-                const content = data.Body.toString('utf-8');
+                const content = data.Body ? data.Body.toString('utf-8') : ''; 
 
-                // 2. Salva com novo nome
                 await saveToR2(newName, content, true);
-
-                // 3. Elimina o antigo
                 await s3.deleteObject(params).promise();
 
-                // 4. Atualiza Abas abertas
-                if (currentFileKey === fileToRename) {
-                    currentFileKey = newName;
-                    updateLiveUrlDisplay();
-                }
+                if (currentFileKey === fileToRename) { currentFileKey = newName; updateLiveUrlDisplay(); }
                 const tabIndex = openTabs.indexOf(fileToRename);
                 if (tabIndex > -1) openTabs[tabIndex] = newName;
 
                 showToast("Ficheiro renomeado!");
-                await loadUserWorkspace(); // Recarrega a lista lateral
+                await loadUserWorkspace();
                 renderTabs();
             } catch (e) {
-                console.error(e);
-                showToast("Erro ao renomear.");
+                if(e.code === 'NoSuchKey') showToast("O ficheiro original não existe.");
+                else { console.error(e); showToast("Erro ao renomear."); }
             }
         }
 
         function openDeleteModal(fileName) {
             fileToDelete = fileName;
+            projectToDelete = '';
             document.getElementById('delete-file-name').textContent = fileName;
             openModal('delete-modal');
         }
 
         async function confirmDelete() {
             closeModal();
-            showToast("A apagar ficheiro...");
-            
-            try {
-                const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + fileToDelete };
-                await s3.deleteObject(params).promise();
 
-                // Fecha aba se estiver aberta
-                openTabs = openTabs.filter(t => t !== fileToDelete);
-                if (currentFileKey === fileToDelete) {
-                    currentFileKey = openTabs.length > 0 ? openTabs[openTabs.length - 1] : '';
-                    if (currentFileKey) {
-                        await loadFileFromR2(currentFileKey);
-                    } else {
-                        editorInstance.setValue('/* Crie ou abra um ficheiro para começar */');
-                        renderTabs();
+            // Lógica para apagar projeto da comunidade
+            if (projectToDelete) {
+                showToast("A apagar projeto da comunidade...");
+                try {
+                    await window.deleteDoc(window.doc(window.firebaseDb, "public_projects", projectToDelete));
+                    showToast("Projeto apagado da comunidade com sucesso!");
+                    loadCommunityProjects();
+                } catch(e) {
+                    console.error("Erro Firebase Delete:", e);
+                    showToast("Erro ao apagar projeto (Sem permissão?).");
+                }
+                projectToDelete = '';
+                return;
+            }
+
+            // Lógica para apagar ficheiros/pastas locais no R2
+            showToast(fileToDelete.endsWith('/') ? "A apagar pasta e todo o seu conteúdo..." : "A apagar ficheiro...");
+            try {
+                if (fileToDelete.endsWith('/')) {
+                    const listParams = { Bucket: R2_BUCKET, Prefix: getR2Prefix() + fileToDelete };
+                    const data = await s3.listObjectsV2(listParams).promise();
+                    
+                    if (data.Contents.length > 0) {
+                        const deleteParams = {
+                            Bucket: R2_BUCKET,
+                            Delete: { Objects: data.Contents.map(c => ({ Key: c.Key })) }
+                        };
+                        await s3.deleteObjects(deleteParams).promise();
+                    }
+                    
+                    openTabs = openTabs.filter(t => !t.startsWith(fileToDelete));
+                    if (currentFileKey.startsWith(fileToDelete)) {
+                        currentFileKey = openTabs.length > 0 ? openTabs[openTabs.length - 1] : '';
                     }
                 } else {
-                    renderTabs();
+                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + fileToDelete };
+                    await s3.deleteObject(params).promise();
+                    openTabs = openTabs.filter(t => t !== fileToDelete);
+                    if (currentFileKey === fileToDelete) currentFileKey = openTabs.length > 0 ? openTabs[openTabs.length - 1] : '';
                 }
 
-                showToast("Ficheiro apagado com sucesso!");
+                if (currentFileKey) {
+                    await loadFileFromR2(currentFileKey);
+                } else {
+                    setEditorValue('/* Crie ou abra um ficheiro para começar */', 'plaintext');
+                    renderTabs();
+                    updateLiveUrlDisplay();
+                }
+
+                showToast("Apagado com sucesso!");
                 await loadUserWorkspace();
             } catch (e) {
                 console.error(e);
@@ -951,10 +1000,7 @@
                     : 'bg-[#2d2d2d] text-gray-400 px-4 py-2 text-xs flex items-center border-t-2 border-transparent border-r border-[#333] min-w-max cursor-pointer hover:bg-[#1e1e1e] hover:text-gray-200 group transition-colors';
                 
                 tabEl.draggable = true;
-                tabEl.ondragstart = (e) => {
-                    e.dataTransfer.setData('text/plain', index);
-                    tabEl.style.opacity = '0.4';
-                };
+                tabEl.ondragstart = (e) => { e.dataTransfer.setData('text/plain', index); tabEl.style.opacity = '0.4'; };
                 tabEl.ondragend = () => tabEl.style.opacity = '1';
                 tabEl.ondragover = (e) => e.preventDefault();
                 tabEl.ondrop = (e) => {
@@ -969,7 +1015,8 @@
 
                 tabEl.onclick = () => { if(!isActive) loadFileFromR2(tab); };
                 
-                const ext = tab.split('.').pop().toLowerCase();
+                const shortName = tab.split('/').pop(); 
+                const ext = shortName.split('.').pop().toLowerCase();
                 let icon = 'fa-solid fa-file-code text-gray-400';
                 if(ext === 'html') icon = 'fa-brands fa-html5 text-blue-400';
                 else if(ext === 'css') icon = 'fa-brands fa-css3 text-blue-300';
@@ -979,7 +1026,7 @@
                 else if(ext === 'json') icon = 'fa-solid fa-code text-green-400';
 
                 tabEl.innerHTML = `
-                    <i class="${icon} mr-2"></i> <span>${tab}</span>
+                    <i class="${icon} mr-2"></i> <span title="${tab}">${shortName}</span>
                     <button onclick="closeTab(event, '${tab}')" class="ml-2 w-4 h-4 rounded hover:bg-gray-600 flex items-center justify-center ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity" title="Fechar">
                         <i class="fa-solid fa-xmark text-[10px] ${isActive ? 'text-gray-300' : 'text-gray-400'}"></i>
                     </button>
@@ -998,7 +1045,7 @@
                     loadFileFromR2(openTabs[openTabs.length - 1]);
                 } else {
                     currentFileKey = '';
-                    editorInstance.setValue('/* Crie ou abra um ficheiro para começar */');
+                    setEditorValue('/* Crie ou abra um ficheiro para começar */', 'plaintext');
                     renderTabs();
                     updateLiveUrlDisplay();
                 }
@@ -1007,9 +1054,7 @@
             }
         }
 
-        function toggleLanguageMenu() {
-            document.getElementById('language-menu').classList.toggle('hidden-element');
-        }
+        function toggleLanguageMenu() { document.getElementById('language-menu').classList.toggle('hidden-element'); }
 
         function changeLanguage(langId) {
             if (!editorInstance) return;
@@ -1020,61 +1065,45 @@
 
         function updateLanguageDisplay(langId) {
             const btn = document.getElementById('current-language-btn');
-            
             const map = {
-                'html': { text: 'HTML' },
-                'css': { text: 'CSS' },
-                'javascript': { text: 'JavaScript' },
-                'typescript': { text: 'TypeScript' },
-                'python': { text: 'Python' },
-                'json': { text: 'JSON' },
-                'plaintext': { text: 'Texto Simples' }
+                'html': { text: 'HTML' }, 'css': { text: 'CSS' }, 'javascript': { text: 'JavaScript' },
+                'typescript': { text: 'TypeScript' }, 'python': { text: 'Python' }, 'json': { text: 'JSON' }, 'plaintext': { text: 'Texto Simples' }
             };
-            
             const info = map[langId] || { text: langId.toUpperCase() };
             btn.innerHTML = `${info.text} <i class="fa-solid fa-chevron-up text-[9px]"></i>`;
         }
 
         async function loadFileFromR2(fileName) {
+            if (!fileName) return;
             try {
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Carregando...';
-                
-                const params = {
-                    Bucket: R2_BUCKET,
-                    Key: getR2Prefix() + fileName
-                };
+                const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + fileName };
                 const data = await s3.getObject(params).promise();
-                const content = data.Body.toString('utf-8');
+                const content = data.Body ? data.Body.toString('utf-8') : ''; 
                 
                 currentFileKey = fileName;
                 updateLiveUrlDisplay();
                 
                 const ext = fileName.split('.').pop().toLowerCase();
                 let lang = 'plaintext';
-                if(ext === 'html') lang = 'html';
-                else if(ext === 'js') lang = 'javascript';
-                else if(ext === 'ts') lang = 'typescript';
-                else if(ext === 'css') lang = 'css';
-                else if(ext === 'py') lang = 'python';
-                else if(ext === 'json') lang = 'json';
+                if(ext === 'html') lang = 'html'; else if(ext === 'js') lang = 'javascript'; else if(ext === 'ts') lang = 'typescript';
+                else if(ext === 'css') lang = 'css'; else if(ext === 'py') lang = 'python'; else if(ext === 'json') lang = 'json';
                 
-                monaco.editor.setModelLanguage(editorInstance.getModel(), lang);
-                updateLanguageDisplay(lang);
+                setEditorValue(content, lang);
                 
-                if (!openTabs.includes(fileName)) {
-                    openTabs.push(fileName);
-                }
-                
-                isLoadingFile = true; 
-                editorInstance.setValue(content);
-                isLoadingFile = false;
+                if (!openTabs.includes(fileName)) openTabs.push(fileName);
                 
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1"></i> Sincronizado';
-                renderFileList();
                 renderTabs(); 
-            } catch (error) {
-                showToast("Erro ao abrir ficheiro.");
-                console.error(error);
+            } catch (error) { 
+                if(error.code === 'NoSuchKey') {
+                    console.warn(`O ficheiro ${fileName} não existe no R2.`);
+                    showToast("O ficheiro não existe ou foi apagado.");
+                    closeTab(new Event('click'), fileName);
+                } else {
+                    showToast("Erro ao abrir ficheiro."); 
+                    console.error(error); 
+                }
             }
         }
 
@@ -1085,111 +1114,241 @@
         }
 
         async function saveToR2(fileName, content, isAutoSave = false) {
+            if (!fileName) return; 
             document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Salvando...';
             try {
-                const params = {
-                    Bucket: R2_BUCKET,
-                    Key: getR2Prefix() + fileName,
-                    Body: content,
-                    ContentType: getContentType(fileName)
-                };
+                const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + fileName, Body: content, ContentType: getContentType(fileName) };
                 await s3.putObject(params).promise();
                 
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-check text-green-400 mr-1"></i> Salvo';
+                if (!isAutoSave) showToast("Ficheiro salvo com sucesso!");
                 
-                if (!isAutoSave) {
-                    showToast("Ficheiro salvo com sucesso!");
-                }
-                
-                if(!localFiles.find(f => f.Key === getR2Prefix() + fileName)) {
-                    loadUserWorkspace();
-                }
+                if(!localFiles.find(f => f.Key === getR2Prefix() + fileName)) loadUserWorkspace();
             } catch (error) {
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-400 mr-1"></i> Erro';
-                if (!isAutoSave) {
-                    showToast("Erro ao salvar no R2.");
-                }
+                if (!isAutoSave) showToast("Erro ao salvar no R2.");
                 console.error(error);
             }
         }
 
         function getContentType(fileName) {
-            if(fileName.endsWith('.html')) return 'text/html';
-            if(fileName.endsWith('.css')) return 'text/css';
-            if(fileName.endsWith('.js')) return 'application/javascript';
-            if(fileName.endsWith('.json')) return 'application/json';
+            if(fileName.endsWith('.html')) return 'text/html'; if(fileName.endsWith('.css')) return 'text/css';
+            if(fileName.endsWith('.js')) return 'application/javascript'; if(fileName.endsWith('.json')) return 'application/json';
             return 'text/plain';
         }
 
-        // --- FUNÇÕES DE CRIAÇÃO E PUBLICAÇÃO (NOVOS MODAIS) ---
+        // --- FUNÇÕES DE CRIAÇÃO (MODAIS, PASTAS E FICHEIROS) ---
         
-        function createNewFile() {
+        function createNewFileInFolder(path) {
+            currentFolderContext = path ? path + '/' : '';
             openModal('new-file-modal');
             setTimeout(() => document.getElementById('new-filename-input').focus(), 100);
+        }
+
+        function openNewFolderModal(path) {
+            currentFolderContext = path ? path + '/' : '';
+            openModal('new-folder-modal');
+            setTimeout(() => document.getElementById('new-folder-input').focus(), 100);
         }
 
         async function confirmNewFile() {
             let name = document.getElementById('new-filename-input').value.trim();
             const ext = document.getElementById('new-file-tech-select').value;
-            
-            if (!name) {
-                showToast("O nome do ficheiro não pode estar vazio!");
-                return;
-            }
+            if (!name) { showToast("O nome do ficheiro não pode estar vazio!"); return; }
 
-            // Remove a extensão caso o utilizador a tenha escrito por engano
             name = name.replace(/\.[^/.]+$/, "");
-            const safeName = name + ext;
+            const safeName = currentFolderContext + name + ext;
             closeModal();
 
-            // Boilerplate/Template base para o tipo de tecnologia escolhida
             let initialContent = "/* Novo Ficheiro */\n";
-            if (ext === '.html') {
-                initialContent = `<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  \n</body>\n</html>`;
-            } else if (ext === '.js') {
-                initialContent = `// Novo ficheiro JavaScript\n`;
-            } else if (ext === '.py') {
-                initialContent = `# Novo ficheiro Python\n`;
-            } else if (ext === '.css') {
-                initialContent = `/* Novo ficheiro CSS */\n`;
-            }
+            if (ext === '.html') initialContent = `<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  \n</body>\n</html>`;
+            else if (ext === '.js') initialContent = `// Novo ficheiro JavaScript\n`;
+            else if (ext === '.py') initialContent = `# Novo ficheiro Python\n`;
+            else if (ext === '.css') initialContent = `/* Novo ficheiro CSS */\n`;
 
             await saveToR2(safeName, initialContent, false); 
             await loadFileFromR2(safeName); 
-            showToast("Ficheiro criado com sucesso!");
+            showToast("Ficheiro guardado com sucesso!");
         }
 
+        async function confirmNewFolder() {
+            let name = document.getElementById('new-folder-input').value.trim();
+            if (!name) return;
+            name = name.replace(/[^a-zA-Z0-9_-]/g, ""); 
+            const safeName = currentFolderContext + name + '/.keep'; 
+            closeModal();
+            showToast("A criar pasta...");
+            await saveToR2(safeName, "", false); 
+            showToast("Pasta criada com sucesso!");
+            loadUserWorkspace();
+        }
+
+        // --- SISTEMA DA COMUNIDADE E PUBLICAÇÃO ---
+
         function publishToCommunity() {
-            if(!editorInstance) return;
+            if(!editorInstance || !currentFileKey) return;
             openModal('publish-modal');
             setTimeout(() => document.getElementById('publish-title-input').focus(), 100);
         }
 
         async function confirmPublish() {
             const title = document.getElementById('publish-title-input').value.trim();
-            if(!title) {
-                showToast("O título não pode estar vazio!");
-                return;
-            }
+            if(!title) { showToast("O título não pode estar vazio!"); return; }
 
             const mainCode = editorInstance.getValue();
             closeModal();
 
             try {
                 await window.addDoc(window.collection(window.firebaseDb, "public_projects"), {
-                    title: title,
-                    authorEmail: currentUser.email,
-                    authorId: currentUser.uid,
-                    code: mainCode,
-                    timestamp: new Date().toISOString()
+                    title: title, authorEmail: currentUser.email, authorId: currentUser.uid,
+                    code: mainCode, timestamp: new Date().toISOString()
                 });
                 showToast("Projeto publicado na Comunidade!");
                 if(document.getElementById('tab-community').classList.contains('tab-active')){
                     loadCommunityProjects();
                 }
+            } catch (e) { console.error(e); showToast("Erro ao publicar projeto."); }
+        }
+
+        function deleteCommunityProject(docId) {
+            projectToDelete = docId;
+            fileToDelete = '';
+            document.getElementById('delete-file-name').textContent = "este projeto público";
+            openModal('delete-modal');
+        }
+
+        function switchSidebarTab(tab) {
+            const btnFiles = document.getElementById('tab-files');
+            const btnComm = document.getElementById('tab-community');
+            const secFiles = document.getElementById('sidebar-files');
+            const secComm = document.getElementById('sidebar-community');
+
+            if(tab === 'files') {
+                btnFiles.className = "flex-1 py-2 text-center text-xs font-semibold tab-active";
+                btnComm.className = "flex-1 py-2 text-center text-xs font-semibold tab-inactive";
+                secFiles.classList.remove('hidden-element'); secComm.classList.add('hidden-element');
+            } else {
+                btnComm.className = "flex-1 py-2 text-center text-xs font-semibold tab-active";
+                btnFiles.className = "flex-1 py-2 text-center text-xs font-semibold tab-inactive";
+                secComm.classList.remove('hidden-element'); secFiles.classList.add('hidden-element');
+                loadCommunityProjects();
+            }
+        }
+
+        function escapeHtmlForSrcDoc(html) {
+            return html.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        async function loadCommunityProjects() {
+            const list = document.getElementById('community-list');
+            list.innerHTML = '<div class="text-center p-4 text-blue-400 text-xs"><i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><br>A carregar comunidade atualizada...</div>';
+            
+            try {
+                const q = window.query(window.collection(window.firebaseDb, "public_projects"));
+                const querySnapshot = await window.getDocs(q);
+                list.innerHTML = '';
+                
+                if(querySnapshot.empty) {
+                    list.innerHTML = '<div class="text-center p-2 text-gray-500 text-xs">Nenhum projeto ainda. Partilhe o primeiro!</div>';
+                    return;
+                }
+
+                const groupedProjects = {};
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if(!groupedProjects[data.authorEmail]) groupedProjects[data.authorEmail] = [];
+                    groupedProjects[data.authorEmail].push({ id: doc.id, ...data });
+                });
+
+                for (const [email, projects] of Object.entries(groupedProjects)) {
+                    const avatarLetter = email.charAt(0).toUpperCase();
+                    let profileHtml = `
+                        <div class="mb-2 bg-[#1e1e1e] rounded-lg border border-[#333] shadow-md overflow-hidden">
+                            <div class="bg-[#252526] p-3 flex items-center gap-3 border-b border-[#333]">
+                                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-inner">${avatarLetter}</div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-gray-200 text-xs font-bold truncate" title="${email}">${email}</div>
+                                    <div class="text-gray-500 text-[10px]">${projects.length} projeto(s) público(s)</div>
+                                </div>
+                            </div>
+                            <div class="p-3 flex flex-col gap-4">
+                    `;
+
+                    projects.forEach(p => {
+                        const safeCode = escapeHtmlForSrcDoc(p.code);
+                        profileHtml += `
+                            <div class="bg-[#2d2d2d] rounded-md border border-[#3c3c3c] overflow-hidden group shadow-sm">
+                                <div class="h-28 w-full bg-white relative overflow-hidden border-b border-[#3c3c3c]">
+                                    <iframe srcdoc="${safeCode}" class="absolute top-0 left-0 w-[400%] h-[400%] origin-top-left scale-[0.25] pointer-events-none" sandbox="allow-scripts"></iframe>
+                                    <div class="absolute inset-0 z-10" title="Prévia do projeto: ${p.title}"></div>
+                                </div>
+                                <div class="p-2">
+                                    <div class="text-blue-400 font-bold text-xs truncate mb-2" title="${p.title}"><i class="fa-solid fa-code text-gray-500 mr-1"></i> ${p.title}</div>
+                                    <div class="flex gap-1.5">
+                                        <button onclick="cloneProject('${p.id}')" class="flex-1 bg-[#3c3c3c] hover:bg-blue-600 text-white text-[10px] py-1.5 rounded transition flex items-center justify-center gap-1 font-semibold" title="Copiar código">
+                                            <i class="fa-solid fa-copy"></i> Copiar
+                                        </button>
+                                        <button onclick="downloadPublicProject('${p.id}', '${p.title}')" class="flex-1 bg-[#3c3c3c] hover:bg-green-600 text-white text-[10px] py-1.5 rounded transition flex items-center justify-center gap-1 font-semibold" title="Baixar">
+                                            <i class="fa-solid fa-download"></i> Baixar
+                                        </button>
+                                    </div>
+                                    ${p.authorId === currentUser.uid ? `
+                                    <button onclick="deleteCommunityProject('${p.id}')" class="w-full mt-1.5 bg-red-900/30 border border-red-900 hover:bg-red-600 text-red-300 hover:text-white text-[10px] py-1.5 rounded transition flex items-center justify-center gap-1 font-semibold" title="Apagar da Comunidade">
+                                        <i class="fa-solid fa-trash"></i> Apagar Projeto
+                                    </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                        window[`cloneData_${p.id}`] = p.code;
+                        window[`cloneTitle_${p.id}`] = p.title; // Armazenado com segurança para o clone
+                    });
+
+                    profileHtml += `</div></div>`;
+                    list.innerHTML += profileHtml;
+                }
             } catch (e) {
                 console.error(e);
-                showToast("Erro ao publicar projeto.");
+                list.innerHTML = '<div class="text-red-400 text-xs text-center">Erro ao carregar projetos.</div>';
+            }
+        }
+
+        // AGORA CLONA, CRIA O FICHEIRO E ABRE AUTOMATICAMENTE (SEM MODAL)
+        async function cloneProject(docId) {
+            const code = window[`cloneData_${docId}`];
+            const title = window[`cloneTitle_${docId}`] || 'projeto';
+            
+            if(code) {
+                // Muda a view para os ficheiros
+                switchSidebarTab('files');
+                showToast("A clonar e abrir o projeto...");
+                
+                // Trata o nome do ficheiro (ex: 'Calculadora de IMC' -> 'calculadora_de_imc')
+                const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                const randomId = Math.floor(Math.random() * 1000);
+                
+                // Define o caminho para ser salvo na subpasta 'clonados'
+                const fileName = `clonados/${safeTitle}_${randomId}.html`;
+                
+                try {
+                    // Guarda o ficheiro no R2 e carrega-o no editor instantaneamente
+                    await saveToR2(fileName, code, false);
+                    await loadFileFromR2(fileName);
+                    showToast("Projeto clonado com sucesso!");
+                } catch (e) {
+                    console.error(e);
+                    showToast("Erro ao clonar o projeto.");
+                }
+            }
+        }
+
+        function downloadPublicProject(docId, title) {
+            const code = window[`cloneData_${docId}`];
+            if(code) {
+                const blob = new Blob([code], { type: 'text/html;charset=utf-8' });
+                const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase() || 'projeto';
+                saveAs(blob, `${safeTitle}.html`);
+                showToast("Download do projeto iniciado!");
             }
         }
 
@@ -1197,7 +1356,7 @@
             const files = event.target.files;
             if(files.length === 0) return;
             
-            showToast(`Iniciando upload de ${files.length} arquivos...`);
+            showToast(`A fazer o upload de ${files.length} ficheiros...`);
             
             for(let i=0; i<files.length; i++) {
                 const file = files[i];
@@ -1213,93 +1372,27 @@
 
         async function downloadWorkspace() {
             if(localFiles.length === 0) {
-                showToast("Nenhum arquivo para baixar.");
-                return;
+                showToast("Nenhum arquivo para baixar."); return;
             }
             showToast("Gerando ZIP...");
             const zip = new JSZip();
             
             for(const file of localFiles) {
                 const fileName = file.Key.replace(getR2Prefix(), '');
-                const params = { Bucket: R2_BUCKET, Key: file.Key };
-                const data = await s3.getObject(params).promise();
-                zip.file(fileName, data.Body);
+                if (!fileName || fileName.endsWith('.keep') || fileName.endsWith('/')) continue; 
+                try {
+                    const params = { Bucket: R2_BUCKET, Key: file.Key };
+                    const data = await s3.getObject(params).promise();
+                    zip.file(fileName, data.Body);
+                } catch(e) {
+                    console.warn("Falha ao incluir no ZIP:", file.Key);
+                }
             }
             
             zip.generateAsync({type:"blob"}).then(function(content) {
                 saveAs(content, "cod-solutions-workspace.zip");
                 showToast("Download iniciado!");
             });
-        }
-
-        function switchSidebarTab(tab) {
-            const btnFiles = document.getElementById('tab-files');
-            const btnComm = document.getElementById('tab-community');
-            const secFiles = document.getElementById('sidebar-files');
-            const secComm = document.getElementById('sidebar-community');
-
-            if(tab === 'files') {
-                btnFiles.className = "flex-1 py-2 text-center text-xs font-semibold tab-active";
-                btnComm.className = "flex-1 py-2 text-center text-xs font-semibold tab-inactive";
-                secFiles.classList.remove('hidden-element');
-                secComm.classList.add('hidden-element');
-            } else {
-                btnComm.className = "flex-1 py-2 text-center text-xs font-semibold tab-active";
-                btnFiles.className = "flex-1 py-2 text-center text-xs font-semibold tab-inactive";
-                secComm.classList.remove('hidden-element');
-                secFiles.classList.add('hidden-element');
-                loadCommunityProjects();
-            }
-        }
-
-        async function loadCommunityProjects() {
-            const list = document.getElementById('community-list');
-            list.innerHTML = '<div class="text-center p-2 text-gray-500 text-xs">Carregando comunidade...</div>';
-            
-            try {
-                const q = window.query(window.collection(window.firebaseDb, "public_projects"));
-                const querySnapshot = await window.getDocs(q);
-                list.innerHTML = '';
-                
-                if(querySnapshot.empty) {
-                    list.innerHTML = '<div class="text-center p-2 text-gray-500 text-xs">Nenhum projeto ainda.</div>';
-                    return;
-                }
-
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    
-                    const card = document.createElement('div');
-                    card.className = "bg-[#2d2d2d] border border-[#3c3c3c] rounded p-3 hover:border-[#007acc] transition";
-                    card.innerHTML = `
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="text-blue-400 font-bold text-sm truncate" title="${data.title}">${data.title}</h3>
-                            <i class="fa-solid fa-globe text-gray-500 text-xs"></i>
-                        </div>
-                        <div class="text-[10px] text-gray-400 mb-3 flex items-center gap-1">
-                            <i class="fa-solid fa-user"></i> ${data.authorEmail}
-                        </div>
-                        <button onclick="cloneProject('${doc.id}')" class="w-full bg-[#3c3c3c] hover:bg-[#4a4a4a] text-white text-xs py-1.5 rounded transition flex items-center justify-center gap-2">
-                            <i class="fa-solid fa-copy"></i> Copiar Código
-                        </button>
-                    `;
-                    list.appendChild(card);
-                    
-                    window[`cloneData_${doc.id}`] = data.code;
-                });
-            } catch (e) {
-                console.error(e);
-                list.innerHTML = '<div class="text-red-400 text-xs text-center">Erro ao carregar projetos.</div>';
-            }
-        }
-
-        function cloneProject(docId) {
-            const code = window[`cloneData_${docId}`];
-            if(code) {
-                editorInstance.setValue(code);
-                switchSidebarTab('files');
-                showToast("Código copiado! Pressione Ctrl+S para salvar no seu R2.");
-            }
         }
     </script>
 </body>
