@@ -184,8 +184,10 @@
 
                 <!-- CONTEÚDO: COMUNIDADE (FIRESTORE) -->
                 <div id="sidebar-community" class="hidden-element flex-1 overflow-y-auto p-3 bg-[#181818] shadow-inner">
-                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-globe text-blue-500"></i> Projetos Públicos
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 flex items-center justify-between w-full">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-globe text-blue-500"></i> Projetos Públicos</span>
+                        <!-- Botão de Atualizar a Comunidade -->
+                        <button onclick="loadCommunityProjects()" class="text-gray-400 hover:text-white transition" title="Atualizar Comunidade"><i class="fa-solid fa-rotate-right"></i></button>
                     </div>
                     <div id="community-list" class="flex flex-col gap-5">
                         <!-- Cards de perfis renderizados via JS -->
@@ -204,6 +206,10 @@
                     <div class="flex-1 cursor-pointer" ondblclick="createNewFileInFolder('')" title="Duplo clique para novo ficheiro na raíz"></div>
                     
                     <div class="flex items-center px-3 border-l border-[#333] gap-3">
+                        <!-- Ferramentas de Separação/União de Código -->
+                        <button onclick="splitCurrentHTML()" class="text-blue-400 hover:text-blue-300 transition" title="Separar (Extrair) HTML/CSS/JS em Ficheiros"><i class="fa-solid fa-code-branch"></i> Extrair</button>
+                        <button onclick="mergeCurrentHTML()" class="text-yellow-500 hover:text-yellow-400 transition" title="Juntar (Embutir) Ficheiros no HTML"><i class="fa-solid fa-file-contract"></i> Embutir</button>
+                        <div class="w-px h-4 bg-[#555]"></div>
                         <button onclick="saveCurrentFile()" class="text-gray-400 hover:text-white" title="Salvar manualmente (Ctrl+S)"><i class="fa-solid fa-save"></i></button>
                         <button onclick="togglePreview()" class="bg-[#007acc] hover:bg-[#005f9e] text-white px-3 py-1 rounded text-xs flex items-center gap-2 transition shadow-sm">
                             <i class="fa-solid fa-play"></i> Exibir Prévia
@@ -448,6 +454,7 @@
         let fileToRename = ''; 
         let fileToDelete = ''; 
         let projectToDelete = ''; 
+        let pendingCloneCode = null; 
         let currentFolderContext = ''; 
 
         const defaultHTML = `<!DOCTYPE html>
@@ -878,6 +885,112 @@
             renderNode(tree, list);
         }
 
+        // --- LÓGICA DE EXTRAÇÃO E UNIÃO DE CÓDIGOS (SPLIT / MERGE) ---
+        
+        async function splitCurrentHTML() {
+            if (!currentFileKey || !currentFileKey.endsWith('.html')) {
+                showToast("Por favor, abra um ficheiro .html para Extrair o código.");
+                return;
+            }
+            let html = editorInstance.getValue();
+
+            // Extrair Blocos CSS
+            let cssContent = '';
+            html = html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (match, p1) => {
+                cssContent += p1 + '\n'; return '';
+            });
+
+            // Extrair Blocos JS (ignorando scripts externos com src=)
+            let jsContent = '';
+            html = html.replace(/<script((?!src).)*>([\s\S]*?)<\/script>/gi, (match, p1, p2) => {
+                jsContent += p2 + '\n'; return '';
+            });
+
+            if (!cssContent.trim() && !jsContent.trim()) {
+                showToast("Não existe CSS ou JS dentro deste HTML para extrair.");
+                return;
+            }
+
+            const projectName = prompt("Qual o nome da nova pasta para o projeto separado?", "meu_projeto");
+            if (!projectName) return;
+
+            const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, "");
+            const folderContext = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
+            const targetFolder = folderContext + safeName + '/';
+
+            if (cssContent.trim()) {
+                if (html.includes('</head>')) html = html.replace('</head>', '  <link rel="stylesheet" href="style.css">\n</head>');
+                else html = `<link rel="stylesheet" href="style.css">\n` + html;
+            }
+
+            if (jsContent.trim()) {
+                if (html.includes('</body>')) html = html.replace('</body>', '  <script src="script.js"><\/script>\n</body>');
+                else html = html + `\n<script src="script.js"><\/script>`;
+            }
+
+            showToast("A extrair e criar ficheiros separados...");
+            await saveToR2(targetFolder + 'index.html', html, false);
+            if (cssContent.trim()) await saveToR2(targetFolder + 'style.css', cssContent.trim(), false);
+            if (jsContent.trim()) await saveToR2(targetFolder + 'script.js', jsContent.trim(), false);
+
+            await loadUserWorkspace();
+            await loadFileFromR2(targetFolder + 'index.html');
+            showToast("Código separado com sucesso!");
+        }
+
+        async function mergeCurrentHTML() {
+            if (!currentFileKey || !currentFileKey.endsWith('.html')) {
+                showToast("Por favor, abra um ficheiro .html para Embutir o código.");
+                return;
+            }
+            let html = editorInstance.getValue();
+            const folderPath = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
+
+            showToast("A procurar ficheiros ligados...");
+            let modified = false;
+
+            // Procurar CSS ligado
+            const linkRegex = /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+            let match;
+            const cssLinks = [];
+            while ((match = linkRegex.exec(html)) !== null) {
+                if (!match[1].startsWith('http')) cssLinks.push({ tag: match[0], href: match[1] });
+            }
+
+            for (const item of cssLinks) {
+                try {
+                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + folderPath + item.href };
+                    const data = await s3.getObject(params).promise();
+                    html = html.replace(item.tag, `<style>\n/* --- ${item.href} --- */\n${data.Body.toString('utf-8')}\n</style>`);
+                    modified = true;
+                } catch (e) { console.warn("Não foi possível carregar CSS:", item.href); }
+            }
+
+            // Procurar JS ligado
+            const scriptRegex = /<script[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi;
+            const jsLinks = [];
+            while ((match = scriptRegex.exec(html)) !== null) {
+                if (!match[1].startsWith('http')) jsLinks.push({ tag: match[0], src: match[1] });
+            }
+
+            for (const item of jsLinks) {
+                try {
+                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + folderPath + item.src };
+                    const data = await s3.getObject(params).promise();
+                    html = html.replace(item.tag, `<script>\n/* --- ${item.src} --- */\n${data.Body.toString('utf-8')}\n<\/script>`);
+                    modified = true;
+                } catch (e) { console.warn("Não foi possível carregar JS:", item.src); }
+            }
+
+            if (modified) {
+                setEditorValue(html, 'html');
+                await saveCurrentFile();
+                showToast("Ficheiros embutidos com sucesso!");
+            } else {
+                showToast("Não foram encontrados ficheiros locais para embutir.");
+            }
+        }
+
         // --- LÓGICA DE ELIMINAR E MUDAR NOME ---
         function openRenameModal(fileName) {
             fileToRename = fileName;
@@ -935,7 +1048,7 @@
                 try {
                     await window.deleteDoc(window.doc(window.firebaseDb, "public_projects", projectToDelete));
                     showToast("Projeto apagado da comunidade com sucesso!");
-                    loadCommunityProjects();
+                    await loadCommunityProjects(); // Atualiza Imediatamente
                 } catch(e) {
                     console.error("Erro Firebase Delete:", e);
                     showToast("Erro ao apagar projeto (Sem permissão?).");
@@ -1313,25 +1426,19 @@
             }
         }
 
-        // AGORA CLONA, CRIA O FICHEIRO E ABRE AUTOMATICAMENTE (SEM MODAL)
         async function cloneProject(docId) {
             const code = window[`cloneData_${docId}`];
             const title = window[`cloneTitle_${docId}`] || 'projeto';
             
             if(code) {
-                // Muda a view para os ficheiros
                 switchSidebarTab('files');
                 showToast("A clonar e abrir o projeto...");
                 
-                // Trata o nome do ficheiro (ex: 'Calculadora de IMC' -> 'calculadora_de_imc')
                 const safeTitle = title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
                 const randomId = Math.floor(Math.random() * 1000);
-                
-                // Define o caminho para ser salvo na subpasta 'clonados'
                 const fileName = `clonados/${safeTitle}_${randomId}.html`;
                 
                 try {
-                    // Guarda o ficheiro no R2 e carrega-o no editor instantaneamente
                     await saveToR2(fileName, code, false);
                     await loadFileFromR2(fileName);
                     showToast("Projeto clonado com sucesso!");
