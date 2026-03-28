@@ -208,7 +208,7 @@
                     <div class="flex items-center px-3 border-l border-[#333] gap-3">
                         <!-- Ferramentas de Separação/União de Código -->
                         <button onclick="splitCurrentHTML()" class="text-blue-400 hover:text-blue-300 transition" title="Separar (Extrair) HTML/CSS/JS em Ficheiros"><i class="fa-solid fa-code-branch"></i> Extrair</button>
-                        <button onclick="mergeCurrentHTML()" class="text-yellow-500 hover:text-yellow-400 transition" title="Juntar (Embutir) Ficheiros no HTML"><i class="fa-solid fa-file-contract"></i> Embutir</button>
+                        <button onclick="mergeCurrentHTML()" class="text-yellow-500 hover:text-yellow-400 transition" title="Juntar Ficheiros Abertos"><i class="fa-solid fa-file-contract"></i> Embutir</button>
                         <div class="w-px h-4 bg-[#555]"></div>
                         <button onclick="saveCurrentFile()" class="text-gray-400 hover:text-white" title="Salvar manualmente (Ctrl+S)"><i class="fa-solid fa-save"></i></button>
                         <button onclick="togglePreview()" class="bg-[#007acc] hover:bg-[#005f9e] text-white px-3 py-1 rounded text-xs flex items-center gap-2 transition shadow-sm">
@@ -300,10 +300,10 @@
         
         <!-- Modal: Novo Ficheiro -->
         <div id="new-file-modal" class="hidden-element bg-[#252526] p-6 rounded-lg shadow-2xl w-96 border border-[#333]">
-            <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-file-circle-plus text-blue-500"></i> Novo Ficheiro</h2>
+            <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-file-circle-plus text-blue-500"></i> Novo Arquivo</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-gray-400 text-xs mb-1">Nome do ficheiro (sem extensão)</label>
+                    <label class="block text-gray-400 text-xs mb-1">Nome do arquivo (sem extensão)</label>
                     <input type="text" id="new-filename-input" onkeydown="if(event.key === 'Enter') confirmNewFile()" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" placeholder="ex: main, style, app">
                 </div>
                 <div>
@@ -345,7 +345,7 @@
             <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-pen text-blue-400"></i> Mudar Nome</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-gray-400 text-xs mb-1">Novo nome do ficheiro (com extensão)</label>
+                    <label class="block text-gray-400 text-xs mb-1">Novo nome do arquivo (com extensão)</label>
                     <input type="text" id="rename-input" onkeydown="if(event.key === 'Enter') confirmRename()" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none">
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
@@ -363,6 +363,22 @@
             <div class="flex justify-end gap-2 pt-2">
                 <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
                 <button onclick="confirmDelete()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded transition text-sm">Apagar</button>
+            </div>
+        </div>
+
+        <!-- Modal: Extrair Ficheiros -->
+        <div id="extract-modal" class="hidden-element bg-[#252526] p-6 rounded-lg shadow-2xl w-96 border border-[#333]">
+            <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-code-branch text-blue-400"></i> Separar Tecnologias</h2>
+            <p class="text-gray-400 text-xs mb-4">O HTML, CSS e JS serão separados e colocados dentro da pasta que escolher abaixo.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">Nome da nova pasta do projeto</label>
+                    <input type="text" id="extract-folder-input" onkeydown="if(event.key === 'Enter') confirmExtract()" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" placeholder="ex: meu_projeto_separado">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
+                    <button onclick="confirmExtract()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition text-sm">Separar</button>
+                </div>
             </div>
         </div>
 
@@ -423,7 +439,7 @@
                     iframe.src = url;
                 })
                 .catch(err => {
-                    document.body.innerHTML = '<div style="color:#ff6b6b;text-align:center;font-family:sans-serif;padding-top: 50px;"><h2>Erro 404</h2><p>O arquivo não foi encontrado no servidor.</p><p style="font-size:12px;color:#aaa;">Certifique-se de que o ficheiro existe e foi salvo no editor.</p></div>';
+                    document.body.innerHTML = '<div style="color:#ff6b6b;text-align:center;font-family:sans-serif;padding-top: 50px;"><h2>Erro 404</h2><p>O arquivo não foi encontrado no servidor.</p><p style="font-size:12px;color:#aaa;">Certifique-se de que o arquivo existe e foi salvo no editor.</p></div>';
                 });
                 
             throw new Error("Modo de visualização ativado. Parando o carregamento do editor principal.");
@@ -564,7 +580,7 @@
         
         function openModal(modalId) {
             document.getElementById('custom-modal-backdrop').classList.remove('hidden-element');
-            const modals = ['new-file-modal', 'publish-modal', 'rename-modal', 'delete-modal', 'new-folder-modal'];
+            const modals = ['new-file-modal', 'publish-modal', 'rename-modal', 'delete-modal', 'new-folder-modal', 'extract-modal'];
             modals.forEach(id => document.getElementById(id).classList.add('hidden-element'));
             document.getElementById(modalId).classList.remove('hidden-element');
         }
@@ -575,6 +591,7 @@
             document.getElementById('new-folder-input').value = '';
             document.getElementById('publish-title-input').value = '';
             document.getElementById('rename-input').value = '';
+            document.getElementById('extract-folder-input').value = '';
             projectToDelete = '';
         }
 
@@ -707,7 +724,7 @@
         
         function updateLiveUrlDisplay() {
             if (!currentUser || !currentFileKey) {
-                document.getElementById('preview-url-bar').textContent = 'Nenhum ficheiro aberto';
+                document.getElementById('preview-url-bar').textContent = 'Nenhum arquivo aberto';
                 return;
             }
             const liveUrl = window.location.origin + window.location.pathname + '?view=users/' + currentUser.uid + '/' + currentFileKey;
@@ -777,7 +794,7 @@
                     if(indexFile) {
                         loadFileFromR2(indexFile.Key.replace(getR2Prefix(), ''));
                     } else {
-                        setEditorValue('/* Crie ou abra um ficheiro para começar */', 'plaintext');
+                        setEditorValue('/* Crie ou abra um arquivo para começar */', 'plaintext');
                     }
                 }
             } catch (error) {
@@ -792,7 +809,7 @@
             list.innerHTML = '';
             
             if (localFiles.length === 0) {
-                list.innerHTML = '<div class="text-gray-500 text-xs text-center">Nenhum ficheiro</div>'; return;
+                list.innerHTML = '<div class="text-gray-500 text-xs text-center">Nenhum arquivo</div>'; return;
             }
 
             const tree = {};
@@ -839,8 +856,9 @@
                             <i class="fa-solid fa-folder text-yellow-500 w-4 text-center mr-1"></i>
                             <span class="truncate flex-1 text-xs">${item.name}</span>
                             <div class="hidden group-hover:flex items-center gap-2 pr-2">
-                                <button onclick="event.stopPropagation(); createNewFileInFolder('${item.path}')" class="text-gray-400 hover:text-white" title="Novo Ficheiro Aqui"><i class="fa-solid fa-file-circle-plus text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); createNewFileInFolder('${item.path}')" class="text-gray-400 hover:text-white" title="Novo Arquivo Aqui"><i class="fa-solid fa-file-circle-plus text-[10px]"></i></button>
                                 <button onclick="event.stopPropagation(); openNewFolderModal('${item.path}')" class="text-gray-400 hover:text-white" title="Nova Pasta Aqui"><i class="fa-solid fa-folder-plus text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); mergeFolder('${item.path}')" class="text-gray-400 hover:text-yellow-400" title="Embutir todos arquivos desta pasta em um único código"><i class="fa-solid fa-file-contract text-[10px]"></i></button>
                                 <button onclick="event.stopPropagation(); openDeleteModal('${item.path}/')" class="text-gray-400 hover:text-red-400" title="Apagar Pasta"><i class="fa-solid fa-trash text-[10px]"></i></button>
                             </div>
                         `;
@@ -875,7 +893,7 @@
                             <span class="truncate flex-1 text-xs ${isCurrent ? 'text-white' : 'text-gray-400'}">${item.name}</span>
                             <div class="hidden group-hover:flex items-center gap-2 pr-2">
                                 <button onclick="event.stopPropagation(); openRenameModal('${item.path}')" class="text-gray-400 hover:text-blue-400 transition" title="Mudar Nome"><i class="fa-solid fa-pen text-[10px]"></i></button>
-                                <button onclick="event.stopPropagation(); openDeleteModal('${item.path}')" class="text-gray-400 hover:text-red-400 transition" title="Apagar Ficheiro"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                <button onclick="event.stopPropagation(); openDeleteModal('${item.path}')" class="text-gray-400 hover:text-red-400 transition" title="Apagar Arquivo"><i class="fa-solid fa-trash text-[10px]"></i></button>
                             </div>
                         `;
                         container.appendChild(div);
@@ -883,112 +901,6 @@
                 });
             }
             renderNode(tree, list);
-        }
-
-        // --- LÓGICA DE EXTRAÇÃO E UNIÃO DE CÓDIGOS (SPLIT / MERGE) ---
-        
-        async function splitCurrentHTML() {
-            if (!currentFileKey || !currentFileKey.endsWith('.html')) {
-                showToast("Por favor, abra um ficheiro .html para Extrair o código.");
-                return;
-            }
-            let html = editorInstance.getValue();
-
-            // Extrair Blocos CSS
-            let cssContent = '';
-            html = html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (match, p1) => {
-                cssContent += p1 + '\n'; return '';
-            });
-
-            // Extrair Blocos JS (ignorando scripts externos com src=)
-            let jsContent = '';
-            html = html.replace(/<script((?!src).)*>([\s\S]*?)<\/script>/gi, (match, p1, p2) => {
-                jsContent += p2 + '\n'; return '';
-            });
-
-            if (!cssContent.trim() && !jsContent.trim()) {
-                showToast("Não existe CSS ou JS dentro deste HTML para extrair.");
-                return;
-            }
-
-            const projectName = prompt("Qual o nome da nova pasta para o projeto separado?", "meu_projeto");
-            if (!projectName) return;
-
-            const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, "");
-            const folderContext = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
-            const targetFolder = folderContext + safeName + '/';
-
-            if (cssContent.trim()) {
-                if (html.includes('</head>')) html = html.replace('</head>', '  <link rel="stylesheet" href="style.css">\n</head>');
-                else html = `<link rel="stylesheet" href="style.css">\n` + html;
-            }
-
-            if (jsContent.trim()) {
-                if (html.includes('</body>')) html = html.replace('</body>', '  <script src="script.js"><\/script>\n</body>');
-                else html = html + `\n<script src="script.js"><\/script>`;
-            }
-
-            showToast("A extrair e criar ficheiros separados...");
-            await saveToR2(targetFolder + 'index.html', html, false);
-            if (cssContent.trim()) await saveToR2(targetFolder + 'style.css', cssContent.trim(), false);
-            if (jsContent.trim()) await saveToR2(targetFolder + 'script.js', jsContent.trim(), false);
-
-            await loadUserWorkspace();
-            await loadFileFromR2(targetFolder + 'index.html');
-            showToast("Código separado com sucesso!");
-        }
-
-        async function mergeCurrentHTML() {
-            if (!currentFileKey || !currentFileKey.endsWith('.html')) {
-                showToast("Por favor, abra um ficheiro .html para Embutir o código.");
-                return;
-            }
-            let html = editorInstance.getValue();
-            const folderPath = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
-
-            showToast("A procurar ficheiros ligados...");
-            let modified = false;
-
-            // Procurar CSS ligado
-            const linkRegex = /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
-            let match;
-            const cssLinks = [];
-            while ((match = linkRegex.exec(html)) !== null) {
-                if (!match[1].startsWith('http')) cssLinks.push({ tag: match[0], href: match[1] });
-            }
-
-            for (const item of cssLinks) {
-                try {
-                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + folderPath + item.href };
-                    const data = await s3.getObject(params).promise();
-                    html = html.replace(item.tag, `<style>\n/* --- ${item.href} --- */\n${data.Body.toString('utf-8')}\n</style>`);
-                    modified = true;
-                } catch (e) { console.warn("Não foi possível carregar CSS:", item.href); }
-            }
-
-            // Procurar JS ligado
-            const scriptRegex = /<script[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi;
-            const jsLinks = [];
-            while ((match = scriptRegex.exec(html)) !== null) {
-                if (!match[1].startsWith('http')) jsLinks.push({ tag: match[0], src: match[1] });
-            }
-
-            for (const item of jsLinks) {
-                try {
-                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + folderPath + item.src };
-                    const data = await s3.getObject(params).promise();
-                    html = html.replace(item.tag, `<script>\n/* --- ${item.src} --- */\n${data.Body.toString('utf-8')}\n<\/script>`);
-                    modified = true;
-                } catch (e) { console.warn("Não foi possível carregar JS:", item.src); }
-            }
-
-            if (modified) {
-                setEditorValue(html, 'html');
-                await saveCurrentFile();
-                showToast("Ficheiros embutidos com sucesso!");
-            } else {
-                showToast("Não foram encontrados ficheiros locais para embutir.");
-            }
         }
 
         // --- LÓGICA DE ELIMINAR E MUDAR NOME ---
@@ -1023,11 +935,11 @@
                 const tabIndex = openTabs.indexOf(fileToRename);
                 if (tabIndex > -1) openTabs[tabIndex] = newName;
 
-                showToast("Ficheiro renomeado!");
+                showToast("Arquivo renomeado!");
                 await loadUserWorkspace();
                 renderTabs();
             } catch (e) {
-                if(e.code === 'NoSuchKey') showToast("O ficheiro original não existe.");
+                if(e.code === 'NoSuchKey') showToast("O arquivo original não existe.");
                 else { console.error(e); showToast("Erro ao renomear."); }
             }
         }
@@ -1058,7 +970,7 @@
             }
 
             // Lógica para apagar ficheiros/pastas locais no R2
-            showToast(fileToDelete.endsWith('/') ? "A apagar pasta e todo o seu conteúdo..." : "A apagar ficheiro...");
+            showToast(fileToDelete.endsWith('/') ? "A apagar pasta e todo o seu conteúdo..." : "A apagar arquivo...");
             try {
                 if (fileToDelete.endsWith('/')) {
                     const listParams = { Bucket: R2_BUCKET, Prefix: getR2Prefix() + fileToDelete };
@@ -1086,7 +998,7 @@
                 if (currentFileKey) {
                     await loadFileFromR2(currentFileKey);
                 } else {
-                    setEditorValue('/* Crie ou abra um ficheiro para começar */', 'plaintext');
+                    setEditorValue('/* Crie ou abra um arquivo para começar */', 'plaintext');
                     renderTabs();
                     updateLiveUrlDisplay();
                 }
@@ -1158,7 +1070,7 @@
                     loadFileFromR2(openTabs[openTabs.length - 1]);
                 } else {
                     currentFileKey = '';
-                    setEditorValue('/* Crie ou abra um ficheiro para começar */', 'plaintext');
+                    setEditorValue('/* Crie ou abra um arquivo para começar */', 'plaintext');
                     renderTabs();
                     updateLiveUrlDisplay();
                 }
@@ -1210,11 +1122,11 @@
                 renderTabs(); 
             } catch (error) { 
                 if(error.code === 'NoSuchKey') {
-                    console.warn(`O ficheiro ${fileName} não existe no R2.`);
-                    showToast("O ficheiro não existe ou foi apagado.");
+                    console.warn(`O arquivo ${fileName} não existe no R2.`);
+                    showToast("O arquivo não existe ou foi apagado.");
                     closeTab(new Event('click'), fileName);
                 } else {
-                    showToast("Erro ao abrir ficheiro."); 
+                    showToast("Erro ao abrir arquivo."); 
                     console.error(error); 
                 }
             }
@@ -1234,7 +1146,7 @@
                 await s3.putObject(params).promise();
                 
                 document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-check text-green-400 mr-1"></i> Salvo';
-                if (!isAutoSave) showToast("Ficheiro salvo com sucesso!");
+                if (!isAutoSave) showToast("Arquivo salvo com sucesso!");
                 
                 if(!localFiles.find(f => f.Key === getR2Prefix() + fileName)) loadUserWorkspace();
             } catch (error) {
@@ -1267,21 +1179,26 @@
         async function confirmNewFile() {
             let name = document.getElementById('new-filename-input').value.trim();
             const ext = document.getElementById('new-file-tech-select').value;
-            if (!name) { showToast("O nome do ficheiro não pode estar vazio!"); return; }
+            if (!name) { showToast("O nome do arquivo não pode estar vazio!"); return; }
 
             name = name.replace(/\.[^/.]+$/, "");
             const safeName = currentFolderContext + name + ext;
             closeModal();
 
-            let initialContent = "/* Novo Ficheiro */\n";
-            if (ext === '.html') initialContent = `<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  \n</body>\n</html>`;
-            else if (ext === '.js') initialContent = `// Novo ficheiro JavaScript\n`;
-            else if (ext === '.py') initialContent = `# Novo ficheiro Python\n`;
-            else if (ext === '.css') initialContent = `/* Novo ficheiro CSS */\n`;
+            let initialContent = "/* Novo Arquivo */\n";
+            if (pendingCloneCode !== null) {
+                initialContent = pendingCloneCode;
+                pendingCloneCode = null;
+            } else {
+                if (ext === '.html') initialContent = `<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  \n</body>\n</html>`;
+                else if (ext === '.js') initialContent = `// Novo arquivo JavaScript\n`;
+                else if (ext === '.py') initialContent = `# Novo arquivo Python\n`;
+                else if (ext === '.css') initialContent = `/* Novo arquivo CSS */\n`;
+            }
 
             await saveToR2(safeName, initialContent, false); 
             await loadFileFromR2(safeName); 
-            showToast("Ficheiro guardado com sucesso!");
+            showToast("Arquivo guardado com sucesso!");
         }
 
         async function confirmNewFolder() {
@@ -1294,6 +1211,204 @@
             await saveToR2(safeName, "", false); 
             showToast("Pasta criada com sucesso!");
             loadUserWorkspace();
+        }
+
+        // --- LÓGICA DE EXTRAÇÃO E UNIÃO DE CÓDIGOS (SPLIT / MERGE) ---
+        
+        function splitCurrentHTML() {
+            if (!currentFileKey || !currentFileKey.endsWith('.html')) {
+                showToast("Por favor, abra um arquivo .html para Extrair o código.");
+                return;
+            }
+            openModal('extract-modal');
+            setTimeout(() => document.getElementById('extract-folder-input').focus(), 100);
+        }
+
+        async function confirmExtract() {
+            const projectName = document.getElementById('extract-folder-input').value.trim();
+            if (!projectName) {
+                showToast("O nome da pasta não pode estar vazio!");
+                return;
+            }
+
+            closeModal();
+            let html = editorInstance.getValue();
+
+            // Extrair Blocos CSS
+            let cssContent = '';
+            html = html.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (match, p1) => {
+                cssContent += p1 + '\n'; return '';
+            });
+
+            // Extrair Blocos JS (ignorando scripts externos com src= para não quebrar tags)
+            let jsContent = '';
+            html = html.replace(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/gi, (match, p1) => {
+                jsContent += p1 + '\n'; return '';
+            });
+
+            if (!cssContent.trim() && !jsContent.trim()) {
+                showToast("Não existe CSS ou JS embutido neste HTML para extrair.");
+                return;
+            }
+
+            const safeName = projectName.replace(/[^a-zA-Z0-9_-]/g, "");
+            const folderContext = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
+            const targetFolder = folderContext + safeName + '/';
+
+            // Injetar Links Externos relativos para o R2 carregar
+            if (cssContent.trim()) {
+                if (html.includes('</head>')) html = html.replace('</head>', '  <link rel="stylesheet" href="./style.css">\n</head>');
+                else html = `<link rel="stylesheet" href="./style.css">\n` + html;
+            }
+
+            if (jsContent.trim()) {
+                if (html.includes('</body>')) html = html.replace('</body>', '  <script src="./script.js"><\/script>\n</body>');
+                else html = html + `\n<script src="./script.js"><\/script>`;
+            }
+
+            showToast("A extrair tecnologias e criar a pasta...");
+            
+            try {
+                await saveToR2(targetFolder + '.keep', "", false); // Garante que a pasta existe visualmente
+                await saveToR2(targetFolder + 'index.html', html, false);
+                if (cssContent.trim()) await saveToR2(targetFolder + 'style.css', cssContent.trim(), false);
+                if (jsContent.trim()) await saveToR2(targetFolder + 'script.js', jsContent.trim(), false);
+
+                await loadUserWorkspace();
+                await loadFileFromR2(targetFolder + 'index.html');
+                showToast("Código separado com sucesso na pasta!");
+            } catch(e) {
+                console.error(e);
+                showToast("Erro ao separar o código.");
+            }
+        }
+
+        // Função engenhosa que encontra ficheiros na pasta do lado do servidor e embute-os no HTML
+        async function mergeFolder(folderPath) {
+            showToast("Procurando arquivo HTML na pasta...");
+            try {
+                // Lista os arquivos na pasta
+                const listParams = { Bucket: R2_BUCKET, Prefix: getR2Prefix() + folderPath + '/' };
+                const data = await s3.listObjectsV2(listParams).promise();
+                
+                const filesInFolder = data.Contents.map(c => c.Key.replace(getR2Prefix(), ''));
+                
+                // Procura um html (preferencia por index.html)
+                const htmlFile = filesInFolder.find(f => f.endsWith('index.html')) || filesInFolder.find(f => f.endsWith('.html'));
+                
+                if (!htmlFile) {
+                    showToast("Nenhum arquivo HTML encontrado nesta pasta para unir.");
+                    return;
+                }
+
+                // Lê o HTML
+                const htmlData = await s3.getObject({ Bucket: R2_BUCKET, Key: getR2Prefix() + htmlFile }).promise();
+                let htmlContent = htmlData.Body ? htmlData.Body.toString('utf-8') : '';
+                let modified = false;
+
+                // Extrai nome da pasta para salvar
+                const folderName = folderPath.split('/').pop() || 'projeto';
+                const parentFolder = folderPath.substring(0, folderPath.lastIndexOf('/'));
+                const targetPrefix = parentFolder ? parentFolder + '/' : '';
+
+                // Embutir CSS (substitui os links originais pelas tags globais com as folhas de estilo dentro)
+                const linkRegex = /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+                let match;
+                const cssLinks = [];
+                while ((match = linkRegex.exec(htmlContent)) !== null) {
+                    if (!match[1].startsWith('http')) cssLinks.push({ tag: match[0], href: match[1] });
+                }
+
+                for (const item of cssLinks) {
+                    try {
+                        const assetPath = folderPath + '/' + item.href.replace(/^\.\//, '');
+                        const assetData = await s3.getObject({ Bucket: R2_BUCKET, Key: getR2Prefix() + assetPath }).promise();
+                        htmlContent = htmlContent.replace(item.tag, `<style>\n/* --- Arquivo: ${item.href} --- */\n${assetData.Body.toString('utf-8')}\n</style>`);
+                        modified = true;
+                    } catch (e) { console.warn("Não carregou CSS:", item.href); }
+                }
+
+                // Embutir JS (substitui as chamadas src pelas tags locais em bloco)
+                const scriptRegex = /<script[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi;
+                const jsLinks = [];
+                while ((match = scriptRegex.exec(htmlContent)) !== null) {
+                    if (!match[1].startsWith('http')) jsLinks.push({ tag: match[0], src: match[1] });
+                }
+
+                for (const item of jsLinks) {
+                    try {
+                        const assetPath = folderPath + '/' + item.src.replace(/^\.\//, '');
+                        const assetData = await s3.getObject({ Bucket: R2_BUCKET, Key: getR2Prefix() + assetPath }).promise();
+                        htmlContent = htmlContent.replace(item.tag, `<script>\n/* --- Arquivo: ${item.src} --- */\n${assetData.Body.toString('utf-8')}\n<\/script>`);
+                        modified = true;
+                    } catch (e) { console.warn("Não carregou JS:", item.src); }
+                }
+
+                if (modified) {
+                    const newFileName = targetPrefix + folderName + '_unido.html';
+                    await saveToR2(newFileName, htmlContent, false);
+                    await loadUserWorkspace();
+                    await loadFileFromR2(newFileName);
+                    showToast("Projeto embutido e salvo com sucesso em um único arquivo!");
+                } else {
+                    showToast("O HTML nesta pasta não possui arquivos CSS ou JS locais para embutir.");
+                }
+            } catch (e) {
+                console.error(e);
+                showToast("Erro ao tentar unir os arquivos da pasta.");
+            }
+        }
+
+        // Função Antiga para embutir do próprio arquivo atual
+        async function mergeCurrentHTML() {
+            if (!currentFileKey || !currentFileKey.endsWith('.html')) {
+                showToast("Por favor, abra um arquivo .html para Embutir o código.");
+                return;
+            }
+            let html = editorInstance.getValue();
+            const folderPath = currentFileKey.includes('/') ? currentFileKey.substring(0, currentFileKey.lastIndexOf('/') + 1) : '';
+
+            showToast("A procurar ficheiros ligados...");
+            let modified = false;
+
+            const linkRegex = /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+            let match;
+            const cssLinks = [];
+            while ((match = linkRegex.exec(html)) !== null) {
+                if (!match[1].startsWith('http')) cssLinks.push({ tag: match[0], href: match[1] });
+            }
+
+            for (const item of cssLinks) {
+                try {
+                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + folderPath + item.href.replace(/^\.\//, '') };
+                    const data = await s3.getObject(params).promise();
+                    html = html.replace(item.tag, `<style>\n/* --- ${item.href} --- */\n${data.Body.toString('utf-8')}\n</style>`);
+                    modified = true;
+                } catch (e) { console.warn("Não foi possível carregar CSS:", item.href); }
+            }
+
+            const scriptRegex = /<script[^>]*src=["']([^"']+)["'][^>]*><\/script>/gi;
+            const jsLinks = [];
+            while ((match = scriptRegex.exec(html)) !== null) {
+                if (!match[1].startsWith('http')) jsLinks.push({ tag: match[0], src: match[1] });
+            }
+
+            for (const item of jsLinks) {
+                try {
+                    const params = { Bucket: R2_BUCKET, Key: getR2Prefix() + folderPath + item.src.replace(/^\.\//, '') };
+                    const data = await s3.getObject(params).promise();
+                    html = html.replace(item.tag, `<script>\n/* --- ${item.src} --- */\n${data.Body.toString('utf-8')}\n<\/script>`);
+                    modified = true;
+                } catch (e) { console.warn("Não foi possível carregar JS:", item.src); }
+            }
+
+            if (modified) {
+                setEditorValue(html, 'html');
+                await saveCurrentFile();
+                showToast("Ficheiros embutidos com sucesso!");
+            } else {
+                showToast("Não foram encontrados ficheiros locais para embutir.");
+            }
         }
 
         // --- SISTEMA DA COMUNIDADE E PUBLICAÇÃO ---
