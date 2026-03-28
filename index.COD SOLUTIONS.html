@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COD SOLUTIONS - Code Editor</title>
+    
+    <!-- Tailwind CSS para Estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- AWS SDK para Cloudflare R2 -->
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1408.0.min.js"></script>
+    
+    <!-- JSZip para baixar pastas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyArez95Xa4fr0M3hT3K_xMEQLvREwgHWaU",
+            authDomain: "cod-solutions-b9ae7.firebaseapp.com",
+            projectId: "cod-solutions-b9ae7",
+            storageBucket: "cod-solutions-b9ae7.firebasestorage.app",
+            messagingSenderId: "89836066292",
+            appId: "1:89836066292:web:2cb688e0bb2770011c55a1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.GoogleAuthProvider = GoogleAuthProvider;
+        window.signInWithPopup = signInWithPopup;
+        window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+        window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+        window.onAuthStateChanged = onAuthStateChanged;
+        window.signOut = signOut;
+        window.collection = collection;
+        window.addDoc = addDoc;
+        window.getDocs = getDocs;
+        window.query = query;
+        window.orderBy = orderBy;
+        window.doc = doc;
+        window.setDoc = setDoc;
+        window.getDoc = getDoc;
+    </script>
+
+    <!-- Monaco Editor Loader -->
+    <script>
+        var require = { paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs' } };
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/loader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/editor/editor.main.nls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.38.0/min/vs/editor/editor.main.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; background-color: #1e1e1e; color: #d4d4d4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        .vscode-bg { background-color: #1e1e1e; }
+        .vscode-sidebar { background-color: #252526; border-right: 1px solid #333; }
+        .vscode-header { background-color: #333333; border-bottom: 1px solid #2d2d2d; }
+        .tab-active { background-color: #1e1e1e; border-top: 2px solid #007acc; color: white; }
+        .tab-inactive { background-color: #2d2d2d; color: #969696; }
+        #editor-container { width: 100%; height: 100%; }
+        #preview-container { background-color: white; border-left: 1px solid #333; }
+        
+        /* Scrollbar customizada estilo VS Code */
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: #1e1e1e; }
+        ::-webkit-scrollbar-thumb { background: #424242; }
+        ::-webkit-scrollbar-thumb:hover { background: #4f4f4f; }
+
+        .file-item:hover { background-color: #37373d; cursor: pointer; }
+        .hidden-element { display: none !important; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col text-sm">
+
+    <!-- TELA DE LOGIN / REGISTRO -->
+    <div id="auth-screen" class="absolute inset-0 z-50 flex items-center justify-center bg-[#1e1e1e]">
+        <div class="bg-[#252526] p-8 rounded-lg shadow-2xl w-96 border border-[#333]">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-code text-4xl text-blue-500 mb-2"></i>
+                <h1 class="text-2xl font-bold text-white">COD SOLUTIONS</h1>
+                <p class="text-gray-400 text-xs mt-1">Seu ecossistema de código na nuvem</p>
+            </div>
+            
+            <div id="auth-error" class="hidden-element bg-red-500/20 border border-red-500 text-red-400 p-2 rounded mb-4 text-xs text-center"></div>
+
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">E-mail</label>
+                    <input type="email" id="email" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" required placeholder="seu@email.com">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">Senha</label>
+                    <input type="password" id="password" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" required placeholder="••••••••">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" id="btn-login" onclick="handleLogin()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition flex justify-center items-center gap-2">Entrar</button>
+                    <button type="button" id="btn-register" onclick="handleRegister()" class="flex-1 bg-[#3c3c3c] hover:bg-[#4a4a4a] text-white py-2 rounded transition flex justify-center items-center gap-2">Criar Conta</button>
+                </div>
+            </form>
+
+            <div class="mt-4 flex items-center justify-between">
+                <hr class="w-full border-[#3c3c3c]">
+                <span class="px-2 text-gray-500 text-xs">OU</span>
+                <hr class="w-full border-[#3c3c3c]">
+            </div>
+
+            <button id="btn-google" onclick="handleGoogleLogin()" class="w-full mt-4 bg-white hover:bg-gray-100 text-gray-900 font-semibold py-2 rounded flex items-center justify-center gap-2 transition">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
+                Entrar com Google
+            </button>
+        </div>
+    </div>
+
+    <!-- APP PRINCIPAL (Oculto até logar) -->
+    <div id="app-screen" class="hidden-element h-full flex flex-col">
+        
+        <!-- HEADER -->
+        <header class="vscode-header h-12 flex items-center justify-between px-4 select-none">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-code text-blue-500 text-lg"></i>
+                <span class="font-semibold tracking-wide text-gray-200">COD SOLUTIONS</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="publishToCommunity()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs flex items-center gap-2 transition">
+                    <i class="fa-solid fa-share-nodes"></i> Compartilhar Projeto
+                </button>
+                <div class="flex items-center gap-2 border-l border-gray-600 pl-4">
+                    <div class="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold" id="user-avatar">U</div>
+                    <span id="user-email-display" class="text-xs text-gray-400">user@email.com</span>
+                    <button onclick="logout()" class="text-gray-400 hover:text-white ml-2" title="Sair"><i class="fa-solid fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </header>
+
+        <!-- CORPO PRINCIPAL -->
+        <div class="flex flex-1 overflow-hidden">
+            
+            <!-- SIDEBAR -->
+            <div class="vscode-sidebar w-64 flex flex-col flex-shrink-0">
+                <!-- TABS LATERAL -->
+                <div class="flex border-b border-[#333]">
+                    <button id="tab-files" onclick="switchSidebarTab('files')" class="flex-1 py-2 text-center text-xs font-semibold tab-active">
+                        <i class="fa-regular fa-folder-open mr-1"></i> Ficheiros
+                    </button>
+                    <button id="tab-community" onclick="switchSidebarTab('community')" class="flex-1 py-2 text-center text-xs font-semibold tab-inactive">
+                        <i class="fa-solid fa-globe mr-1"></i> Comunidade
+                    </button>
+                </div>
+
+                <!-- CONTEÚDO: ARQUIVOS (R2) -->
+                <div id="sidebar-files" class="flex-1 overflow-y-auto p-2 flex flex-col">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Meu Espaço</span>
+                        <div class="flex gap-2">
+                            <button onclick="createNewFile()" class="text-gray-400 hover:text-white" title="Novo Ficheiro"><i class="fa-solid fa-file-circle-plus"></i></button>
+                            <label class="cursor-pointer text-gray-400 hover:text-white" title="Subir Pasta">
+                                <i class="fa-solid fa-upload"></i>
+                                <input type="file" id="folder-upload" webkitdirectory directory multiple class="hidden" onchange="uploadFolder(event)">
+                            </label>
+                            <button onclick="downloadWorkspace()" class="text-gray-400 hover:text-white" title="Baixar Workspace (.zip)"><i class="fa-solid fa-download"></i></button>
+                        </div>
+                    </div>
+                    
+                    <div id="file-list" class="flex flex-col gap-1 text-[13px]">
+                        <!-- Arquivos renderizados via JS -->
+                        <div class="text-gray-500 text-xs italic p-2 text-center">Carregando ficheiros...</div>
+                    </div>
+                </div>
+
+                <!-- CONTEÚDO: COMUNIDADE (FIRESTORE) -->
+                <div id="sidebar-community" class="hidden-element flex-1 overflow-y-auto p-2 bg-[#1e1e1e]">
+                    <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">Projetos da Comunidade</div>
+                    <div id="community-list" class="flex flex-col gap-3">
+                        <!-- Cards de projetos renderizados via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- EDITOR AREA -->
+            <div class="flex-1 flex flex-col min-w-0 border-r border-[#333]">
+                <!-- Abas do Editor -->
+                <div id="editor-tabs-container" class="bg-[#2d2d2d] flex overflow-x-auto border-b border-[#1e1e1e] h-9 select-none">
+                    <div class="flex" id="tabs-list">
+                        <!-- Renderizadas dinamicamente via renderTabs() -->
+                    </div>
+                    <!-- Área flex-1 preenche o vazio para o duplo clique funcionar perfeitamente -->
+                    <div class="flex-1 cursor-pointer" ondblclick="createNewFile()" title="Duplo clique para novo ficheiro"></div>
+                    
+                    <div class="flex items-center px-3 border-l border-[#333] gap-3">
+                        <button onclick="saveCurrentFile()" class="text-gray-400 hover:text-white" title="Salvar manualmente (Ctrl+S)"><i class="fa-solid fa-save"></i></button>
+                        <button onclick="togglePreview()" class="bg-[#007acc] hover:bg-[#005f9e] text-white px-3 py-1 rounded text-xs flex items-center gap-2 transition shadow-sm">
+                            <i class="fa-solid fa-play"></i> Exibir Prévia
+                        </button>
+                    </div>
+                </div>
+                <!-- Monaco Container -->
+                <div id="editor-container" class="flex-1 w-full"></div>
+            </div>
+
+            <!-- PREVIEW AREA -->
+            <div id="preview-panel" class="hidden-element flex flex-col bg-white border-l border-[#333] transition-all duration-300" style="width: 50%;">
+                <div class="bg-gray-100 border-b border-gray-300 h-9 flex items-center px-3 justify-between">
+                    <!-- Controles de Responsividade -->
+                    <div class="flex items-center gap-1 bg-gray-200 rounded p-0.5 w-1/4">
+                        <button onclick="setPreviewSize('desktop')" id="btn-desktop" class="px-2 py-0.5 bg-white shadow-sm rounded text-blue-600 text-xs transition" title="Computador"><i class="fa-solid fa-desktop"></i></button>
+                        <button onclick="setPreviewSize('tablet')" id="btn-tablet" class="px-2 py-0.5 rounded text-gray-500 hover:text-blue-600 text-xs transition" title="Tablet"><i class="fa-solid fa-tablet-screen-button"></i></button>
+                        <button onclick="setPreviewSize('mobile')" id="btn-mobile" class="px-2 py-0.5 rounded text-gray-500 hover:text-blue-600 text-xs transition" title="Celular"><i class="fa-solid fa-mobile-screen-button"></i></button>
+                    </div>
+
+                    <!-- Barra de Endereço (URL) Sub-link -->
+                    <div class="flex-1 mx-4 flex items-center bg-white border border-gray-300 rounded px-2 py-1 text-gray-500 text-[10px] truncate select-all overflow-hidden" title="Link público deste arquivo">
+                        <i class="fa-solid fa-lock text-green-600 mr-2"></i>
+                        <span id="preview-url-bar" class="truncate">https://cod-solutions-xi.vercel.app/</span>
+                    </div>
+
+                    <!-- Botões de Ação -->
+                    <div class="flex items-center gap-3 w-1/4 justify-end">
+                        <button onclick="toggleConsole()" class="text-xs text-gray-500 hover:text-blue-600" title="Ver Console">
+                            <i class="fa-solid fa-terminal"></i>
+                        </button>
+                        <button onclick="openLiveLink()" class="text-xs text-gray-500 hover:text-blue-600" title="Abrir no Navegador (Nova Janela)">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        </button>
+                        <button onclick="updatePreview()" class="text-xs text-blue-600 hover:text-blue-800" title="Atualizar Prévia">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                        <button onclick="togglePreview()" class="text-gray-500 hover:text-red-500 ml-1" title="Fechar Prévia">
+                            <i class="fa-solid fa-times text-base"></i>
+                        </button>
+                    </div>
+                </div>
+                <!-- Fundo varia dinamicamente entre desktop e mobile -->
+                <div class="flex-1 flex flex-col min-h-0">
+                    <div id="preview-wrapper" class="flex-1 bg-white flex justify-center overflow-auto items-start p-0 relative transition-all duration-300">
+                        <iframe id="preview-iframe" class="bg-white transition-all duration-300" style="width: 100%; height: 100%;"></iframe>
+                    </div>
+                    
+                    <!-- Console Panel -->
+                    <div id="console-panel" class="hidden-element h-48 bg-[#1e1e1e] border-t border-[#333] flex flex-col shrink-0">
+                        <div class="bg-[#2d2d2d] text-gray-400 text-[10px] uppercase font-bold px-3 py-1.5 flex justify-between items-center tracking-wider">
+                            <span>Console</span>
+                            <button onclick="clearConsole()" class="hover:text-white" title="Limpar Console"><i class="fa-solid fa-ban"></i></button>
+                        </div>
+                        <div id="console-output" class="flex-1 overflow-y-auto p-2 font-mono text-[11px] text-gray-300 break-words"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        
+        <!-- STATUS BAR -->
+        <footer class="bg-[#007acc] text-white h-6 flex items-center px-3 text-[11px] justify-between select-none">
+            <div class="flex gap-4 items-center">
+                <span><i class="fa-solid fa-code-branch mr-1"></i> main</span>
+                <span id="sync-status"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Sincronizado</span>
+            </div>
+            <div class="relative flex items-center">
+                <button onclick="toggleLanguageMenu()" id="current-language-btn" class="hover:bg-[#005f9e] px-2 py-0.5 rounded transition flex items-center gap-1" title="Selecionar Linguagem">
+                    HTML <i class="fa-solid fa-chevron-up text-[9px]"></i>
+                </button>
+                <!-- Menu de Linguagens -->
+                <div id="language-menu" class="hidden-element absolute bottom-full right-0 mb-1 w-40 bg-[#252526] border border-[#333] rounded shadow-lg flex flex-col py-1 z-50 text-xs">
+                    <button onclick="changeLanguage('html')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">HTML</button>
+                    <button onclick="changeLanguage('css')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">CSS</button>
+                    <button onclick="changeLanguage('javascript')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">JavaScript</button>
+                    <button onclick="changeLanguage('typescript')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">TypeScript</button>
+                    <button onclick="changeLanguage('python')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">Python</button>
+                    <button onclick="changeLanguage('json')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">JSON</button>
+                    <button onclick="changeLanguage('plaintext')" class="text-left px-3 py-1.5 hover:bg-[#007acc] text-gray-300 hover:text-white transition">Texto Simples</button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- MODAIS CUSTOMIZADOS (Substituem os Prompts) -->
+    <div id="custom-modal-backdrop" class="fixed inset-0 bg-black/60 z-[100] hidden-element flex items-center justify-center">
+        
+        <!-- Modal: Novo Ficheiro -->
+        <div id="new-file-modal" class="hidden-element bg-[#252526] p-6 rounded-lg shadow-2xl w-96 border border-[#333]">
+            <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-file-circle-plus text-blue-500"></i> Novo Ficheiro</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">Nome do ficheiro (sem extensão)</label>
+                    <input type="text" id="new-filename-input" onkeydown="if(event.key === 'Enter') confirmNewFile()" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" placeholder="ex: main, style, app">
+                </div>
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">Tecnologia / Linguagem</label>
+                    <select id="new-file-tech-select" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none">
+                        <option value=".html">HTML (.html)</option>
+                        <option value=".css">CSS (.css)</option>
+                        <option value=".js">JavaScript (.js)</option>
+                        <option value=".ts">TypeScript (.ts)</option>
+                        <option value=".py">Python (.py)</option>
+                        <option value=".json">JSON (.json)</option>
+                        <option value=".txt">Texto Simples (.txt)</option>
+                    </select>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
+                    <button onclick="confirmNewFile()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition text-sm">Criar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Publicar Projeto -->
+        <div id="publish-modal" class="hidden-element bg-[#252526] p-6 rounded-lg shadow-2xl w-96 border border-[#333]">
+            <h2 class="text-white text-lg font-bold mb-4 flex items-center gap-2"><i class="fa-solid fa-share-nodes text-green-500"></i> Publicar na Comunidade</h2>
+            <p class="text-gray-400 text-xs mb-4">O seu código ficará visível para que outros programadores o possam estudar e copiar.</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-gray-400 text-xs mb-1">Título do Projeto</label>
+                    <input type="text" id="publish-title-input" onkeydown="if(event.key === 'Enter') confirmPublish()" class="w-full bg-[#3c3c3c] text-white border border-[#3c3c3c] focus:border-blue-500 rounded p-2 outline-none" placeholder="ex: Calculadora em JS">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button onclick="closeModal()" class="px-4 py-2 bg-transparent hover:bg-[#3c3c3c] text-gray-300 rounded transition text-sm">Cancelar</button>
+                    <button onclick="confirmPublish()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded transition text-sm">Publicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modais e Notificações (Toasts) -->
+    <div id="toast" class="fixed bottom-10 right-10 bg-[#007acc] border border-[#005f9e] text-white px-5 py-3 rounded shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-[110] flex items-center gap-3 font-semibold text-sm">
+        <i class="fa-solid fa-circle-info"></i>
+        <span id="toast-msg">Mensagem</span>
+    </div>
+
+    <!-- SCRIPTS E LÓGICA DO APP -->
+    <script>
+        // --- INTERCEPTADOR DE VISUALIZAÇÃO PÚBLICA (SUB-LINK) ---
+        // Transforma o Vercel App num visualizador em tempo real dos seus ficheiros no R2
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewPath = urlParams.get('view');
+        const R2_PUB_URL = 'https://pub-263c6a7252164111a104a68e6835cfc4.r2.dev';
+
+        if (viewPath) {
+            document.documentElement.innerHTML = '<head><title>Prévia - COD SOLUTIONS</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;height:100vh;background:#1e1e1e;color:white;font-family:sans-serif;">Carregando prévia ao vivo...</body>';
+            
+            fetch(`${R2_PUB_URL}/${viewPath}`)
+                .then(res => {
+                    if(!res.ok) throw new Error('Arquivo não encontrado');
+                    return res.text();
+                })
+                .then(html => {
+                    document.open();
+                    document.write(html);
+                    document.close();
+                })
+                .catch(err => {
+                    document.body.innerHTML = '<div style="color:#ff6b6b;text-align:center;font-family:sans-serif;"><h2>Erro 404</h2><p>O arquivo não foi encontrado no servidor.</p><p style="font-size:12px;color:#aaa;">Certifique-se de que o ficheiro existe e foi salvo no editor.</p></div>';
+                });
+                
+            // Interrompe o carregamento do restante do código do Editor
+            throw new Error("Modo de visualização ativado. Parando o carregamento do editor principal.");
+        }
+
+        // --- CONFIGURAÇÃO AWS R2 (Cloudflare) ---
+        // AVISO: Usar chaves secretas no front-end é perigoso para produção.
+        const R2_ACCOUNT_ID = '2ece542306d80259e71a793d20f91a60';
+        const R2_BUCKET = 'test03';
+
+        AWS.config.update({
+            accessKeyId: '5927346c29f0740f8022fd1229176d22',
+            secretAccessKey: 'f70dcaa76572278fc42f929722106d01920729a7bef1ce7f7222f55e1dbb1adc',
+            region: 'auto',
+            endpoint: new AWS.Endpoint(`https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`),
+            signatureVersion: 'v4'
+        });
+        const s3 = new AWS.S3();
+
+        // --- VARIÁVEIS GLOBAIS ---
+        let currentUser = null;
+        let editorInstance = null;
+        let currentFileKey = 'index.html';
+        let localFiles = []; // Cache dos arquivos do usuário
+        let openTabs = []; // Cache de ficheiros abertos (Abas)
+        let previewDebounce = null;
+        let autoSaveDebounce = null;
+        let isLoadingFile = false; // Impede auto-save indesejado ao trocar de arquivo
+
+        const defaultHTML = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Meu Projeto COD SOLUTIONS</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    h1 { color: #007acc; }
+  </style>
+</head>
+<body>
+  <h1>Olá, Mundo!</h1>
+  <p>Edite o código ao lado para ver as mudanças aqui.</p>
+</body>
+</html>`;
+
+        // --- INICIALIZAÇÃO DO MONACO EDITOR ---
+        window.onload = function() {
+            setTimeout(() => {
+                if(window.monaco) {
+                    editorInstance = monaco.editor.create(document.getElementById('editor-container'), {
+                        value: defaultHTML,
+                        language: 'html',
+                        theme: 'vs-dark',
+                        automaticLayout: true,
+                        minimap: { enabled: false },
+                        fontSize: 14
+                    });
+
+                    editorInstance.onDidChangeModelContent(() => {
+                        if (isLoadingFile) return; // Ignora alterações geradas pela leitura do ficheiro
+
+                        document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-circle text-yellow-400 mr-1"></i> Modificado';
+                        
+                        // Atualização em tempo real (Real-time Preview)
+                        const panel = document.getElementById('preview-panel');
+                        if (!panel.classList.contains('hidden-element')) {
+                            clearTimeout(previewDebounce);
+                            previewDebounce = setTimeout(updatePreview, 600); // Aguarda 600ms após parar de digitar
+                        }
+
+                        // Salvamento Automático no R2 (Auto-save)
+                        clearTimeout(autoSaveDebounce);
+                        autoSaveDebounce = setTimeout(() => {
+                            saveCurrentFile(true); // Envia o sinal de que é um auto-save
+                        }, 1500); // Salva 1.5s após parar de digitar
+                    });
+                    
+                    // Atalho Ctrl+S
+                    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
+                        saveCurrentFile();
+                    });
+                }
+            }, 1000);
+
+            // Listener de Autenticação
+            setTimeout(() => {
+                window.onAuthStateChanged(window.firebaseAuth, async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('auth-screen').classList.add('hidden-element');
+                        document.getElementById('app-screen').classList.remove('hidden-element');
+                        
+                        document.getElementById('user-email-display').textContent = user.email;
+                        document.getElementById('user-avatar').textContent = user.email.charAt(0).toUpperCase();
+                        
+                        await initializeUserCollections(user);
+                        
+                        loadUserWorkspace();
+                        loadCommunityProjects();
+                        showToast("Acesso liberado! Bem-vindo(a)!");
+                    } else {
+                        currentUser = null;
+                        document.getElementById('app-screen').classList.add('hidden-element');
+                        document.getElementById('auth-screen').classList.remove('hidden-element');
+                        
+                        // Reseta os botões caso o usuário tenha deslogado
+                        const btnLogin = document.getElementById('btn-login');
+                        if(btnLogin) {
+                            btnLogin.innerHTML = 'Entrar';
+                            btnLogin.disabled = false;
+                            document.getElementById('btn-register').innerHTML = 'Criar Conta';
+                            document.getElementById('btn-register').disabled = false;
+                            document.getElementById('btn-google').innerHTML = '<img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google"> Entrar com Google';
+                            document.getElementById('btn-google').disabled = false;
+                        }
+                    }
+                });
+            }, 500);
+        };
+
+        // --- SISTEMA DE AUTENTICAÇÃO E MODAIS ---
+        
+        function openModal(modalId) {
+            document.getElementById('custom-modal-backdrop').classList.remove('hidden-element');
+            document.getElementById('new-file-modal').classList.add('hidden-element');
+            document.getElementById('publish-modal').classList.add('hidden-element');
+            
+            const targetModal = document.getElementById(modalId);
+            targetModal.classList.remove('hidden-element');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal-backdrop').classList.add('hidden-element');
+            document.getElementById('new-filename-input').value = '';
+            document.getElementById('publish-title-input').value = '';
+        }
+
+        function showError(msg) {
+            const errDiv = document.getElementById('auth-error');
+            errDiv.textContent = msg;
+            errDiv.classList.remove('hidden-element');
+        }
+
+        function translateAuthError(error) {
+            if (error.code === 'auth/operation-not-allowed') return "Erro: Ative Email/Senha ou Google no painel Authentication do Firebase.";
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password') return "Email ou senha incorretos.";
+            if (error.code === 'auth/email-already-in-use') return "Este e-mail já está cadastrado. Clique no botão 'Entrar' para acessar sua conta.";
+            if (error.code === 'auth/unauthorized-domain') return "Erro: Adicione seu domínio (Vercel) na aba 'Authorized domains' do Firebase Auth.";
+            if (error.code === 'auth/popup-closed-by-user') return "Login com Google cancelado.";
+            if (error.code === 'auth/invalid-email') return "O formato do e-mail é inválido.";
+            if (error.code === 'auth/weak-password') return "A senha é muito fraca. Tente uma com 6 letras ou mais.";
+            
+            console.error("Erro Firebase Crítico:", error);
+            return "Erro: " + error.message;
+        }
+
+        async function initializeUserCollections(user) {
+            try {
+                const userRef = window.doc(window.firebaseDb, "users", user.uid);
+                const userSnap = await window.getDoc(userRef);
+                
+                if (!userSnap.exists()) {
+                    await window.setDoc(userRef, {
+                        email: user.email,
+                        uid: user.uid,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+            } catch (error) {
+                console.error("Erro ao inicializar coleção users:", error);
+            }
+        }
+
+        async function handleLogin() {
+            document.getElementById('auth-error').classList.add('hidden-element');
+            const btn = document.getElementById('btn-login');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Entrando...';
+            btn.disabled = true;
+
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            try {
+                await window.signInWithEmailAndPassword(window.firebaseAuth, email, pass);
+            } catch (error) {
+                showError(translateAuthError(error));
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function handleRegister() {
+            document.getElementById('auth-error').classList.add('hidden-element');
+            const btn = document.getElementById('btn-register');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Criando...';
+            btn.disabled = true;
+
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            if(pass.length < 6) {
+                showError("A senha deve ter pelo menos 6 caracteres.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                return;
+            }
+            try {
+                await window.createUserWithEmailAndPassword(window.firebaseAuth, email, pass);
+                showToast("Conta criada com sucesso!");
+            } catch (error) {
+                showError(translateAuthError(error));
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        async function handleGoogleLogin() {
+            document.getElementById('auth-error').classList.add('hidden-element');
+            const btn = document.getElementById('btn-google');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-gray-600"></i> Conectando...';
+            btn.disabled = true;
+
+            const provider = new window.GoogleAuthProvider();
+            try {
+                await window.signInWithPopup(window.firebaseAuth, provider);
+            } catch (error) {
+                showError(translateAuthError(error));
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function logout() {
+            window.signOut(window.firebaseAuth);
+        }
+
+        // --- LÓGICA DO EDITOR E PREVIEW ---
+        function updatePreview() {
+            if(!editorInstance) return;
+            let code = editorInstance.getValue();
+            
+            // Injeção de script para capturar erros e enviar para o nosso Console
+            const consoleInterceptor = `
+            <script>
+                window.onerror = function(message, source, lineno, colno, error) {
+                    window.parent.postMessage({type: 'console', level: 'error', message: message + ' (Linha: ' + lineno + ')'}, '*');
+                    return true;
+                };
+                const _log = console.log, _error = console.error, _warn = console.warn;
+                console.log = function(...args) { window.parent.postMessage({type: 'console', level: 'log', message: args.join(' ')}, '*'); _log.apply(console, args); };
+                console.error = function(...args) { window.parent.postMessage({type: 'console', level: 'error', message: args.join(' ')}, '*'); _error.apply(console, args); };
+                console.warn = function(...args) { window.parent.postMessage({type: 'console', level: 'warn', message: args.join(' ')}, '*'); _warn.apply(console, args); };
+            <\/script>`;
+            
+            if (code.toLowerCase().includes('<head>')) {
+                code = code.replace(/<head>/i, '<head>' + consoleInterceptor);
+            } else {
+                code = consoleInterceptor + code;
+            }
+
+            const iframe = document.getElementById('preview-iframe');
+            const blob = new Blob([code], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            
+            iframe.onload = () => URL.revokeObjectURL(url);
+            iframe.src = url;
+        }
+
+        window.addEventListener('message', function(e) {
+            if (e.data && e.data.type === 'console') {
+                const output = document.getElementById('console-output');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'border-b border-[#333] py-1 ' + 
+                    (e.data.level === 'error' ? 'text-red-500 font-bold' : 
+                     e.data.level === 'warn' ? 'text-yellow-500' : 'text-gray-300');
+                msgDiv.textContent = '> ' + e.data.message;
+                output.appendChild(msgDiv);
+                output.scrollTop = output.scrollHeight;
+            }
+        });
+
+        function toggleConsole() {
+            const panel = document.getElementById('console-panel');
+            panel.classList.toggle('hidden-element');
+            if (editorInstance) setTimeout(() => editorInstance.layout(), 100);
+        }
+
+        function clearConsole() {
+            document.getElementById('console-output').innerHTML = '';
+        }
+        
+        function updateLiveUrlDisplay() {
+            if (!currentUser || !currentFileKey) return;
+            // Gera um link com a propriedade ?view para o site Vercel atuar como visualizador
+            const liveUrl = window.location.origin + window.location.pathname + '?view=users/' + currentUser.uid + '/' + currentFileKey;
+            document.getElementById('preview-url-bar').textContent = liveUrl;
+        }
+
+        function openLiveLink() {
+            if (!currentUser || !currentFileKey) return;
+            // Abre o Sub-Link real gerado no navegador
+            const liveUrl = window.location.origin + window.location.pathname + '?view=users/' + currentUser.uid + '/' + currentFileKey;
+            window.open(liveUrl, '_blank');
+        }
+
+        function setPreviewSize(size) {
+            const iframe = document.getElementById('preview-iframe');
+            const panel = document.getElementById('preview-panel');
+            const wrapper = document.getElementById('preview-wrapper');
+            const btnDesktop = document.getElementById('btn-desktop');
+            const btnTablet = document.getElementById('btn-tablet');
+            const btnMobile = document.getElementById('btn-mobile');
+
+            const baseClass = "px-2 py-0.5 rounded text-xs transition ";
+            const activeClass = "bg-white shadow-sm text-blue-600";
+            const inactiveClass = "text-gray-500 hover:text-blue-600";
+
+            btnDesktop.className = baseClass + (size === 'desktop' ? activeClass : inactiveClass);
+            btnTablet.className = baseClass + (size === 'tablet' ? activeClass : inactiveClass);
+            btnMobile.className = baseClass + (size === 'mobile' ? activeClass : inactiveClass);
+
+            if (size === 'desktop') {
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                panel.style.width = '50%'; 
+                
+                // Remove estilos de dispositivo móvel e preenche o ecrã inteiro
+                wrapper.className = "flex-1 bg-white flex justify-center overflow-auto items-start p-0 relative transition-all duration-300";
+                iframe.className = "bg-white transition-all duration-300";
+            } else {
+                // Adiciona o fundo cinza escuro, padding e sombra simulando dispositivo
+                wrapper.className = "flex-1 bg-gray-300 flex justify-center overflow-auto items-start p-4 relative transition-all duration-300";
+                iframe.className = "border border-gray-400 bg-white shadow-2xl transition-all duration-300";
+                
+                if (size === 'tablet') {
+                    iframe.style.width = '768px';
+                    iframe.style.height = '1024px';
+                    panel.style.width = '820px'; 
+                } else if (size === 'mobile') {
+                    iframe.style.width = '375px';
+                    iframe.style.height = '667px';
+                    panel.style.width = '420px'; 
+                }
+            }
+            
+            if (editorInstance) {
+                setTimeout(() => editorInstance.layout(), 350); 
+            }
+        }
+
+        function togglePreview() {
+            const panel = document.getElementById('preview-panel');
+            if (panel.classList.contains('hidden-element')) {
+                panel.classList.remove('hidden-element');
+                setPreviewSize('desktop'); 
+                updatePreview();
+            } else {
+                panel.classList.add('hidden-element');
+            }
+            
+            if (editorInstance) {
+                setTimeout(() => editorInstance.layout(), 350);
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = message;
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.transform = 'translateY(40px)';
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        // --- SISTEMA DE ARQUIVOS R2 ---
+        
+        function getR2Prefix() {
+            return `users/${currentUser.uid}/`;
+        }
+
+        async function loadUserWorkspace() {
+            document.getElementById('file-list').innerHTML = '<div class="text-center p-2 text-gray-500">Carregando ficheiros...</div>';
+            try {
+                const params = {
+                    Bucket: R2_BUCKET,
+                    Prefix: getR2Prefix()
+                };
+                
+                const data = await s3.listObjectsV2(params).promise();
+                localFiles = data.Contents || [];
+                
+                renderFileList();
+                
+                if (localFiles.length === 0) {
+                    await saveToR2('index.html', defaultHTML);
+                    await loadUserWorkspace();
+                } else {
+                    const indexFile = localFiles.find(f => f.Key.endsWith('index.html')) || localFiles[0];
+                    if(indexFile) loadFileFromR2(indexFile.Key.replace(getR2Prefix(), ''));
+                }
+            } catch (error) {
+                console.error("Erro R2:", error);
+                document.getElementById('file-list').innerHTML = `<div class="text-red-400 p-2 text-xs text-center">Erro ao conectar R2. Verifique CORS e Chaves.</div>`;
+            }
+        }
+
+        function renderFileList() {
+            const list = document.getElementById('file-list');
+            list.innerHTML = '';
+            
+            if (localFiles.length === 0) {
+                list.innerHTML = '<div class="text-gray-500 text-xs text-center">Nenhum ficheiro</div>';
+                return;
+            }
+
+            localFiles.forEach(file => {
+                const fileName = file.Key.replace(getR2Prefix(), '');
+                const ext = fileName.split('.').pop();
+                let icon = 'fa-file-code text-blue-400';
+                if(ext === 'css') icon = 'fa-css3 text-blue-300';
+                if(ext === 'js') icon = 'fa-js text-yellow-400';
+
+                const isCurrent = fileName === currentFileKey;
+
+                const div = document.createElement('div');
+                div.className = `file-item flex items-center px-2 py-1.5 rounded gap-2 ${isCurrent ? 'bg-[#37373d]' : ''}`;
+                div.onclick = () => loadFileFromR2(fileName);
+                div.innerHTML = `
+                    <i class="fa-solid ${icon} w-4 text-center"></i>
+                    <span class="truncate flex-1 ${isCurrent ? 'text-white' : 'text-gray-400'}">${fileName}</span>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // --- SISTEMA DE LINGUAGENS E ABAS ---
+        function renderTabs() {
+            const list = document.getElementById('tabs-list');
+            list.innerHTML = '';
+            
+            openTabs.forEach((tab, index) => {
+                const isActive = tab === currentFileKey;
+                const tabEl = document.createElement('div');
+                
+                tabEl.className = isActive 
+                    ? 'bg-[#1e1e1e] text-blue-400 px-4 py-2 text-xs flex items-center border-t-2 border-blue-500 min-w-max cursor-pointer group' 
+                    : 'bg-[#2d2d2d] text-gray-400 px-4 py-2 text-xs flex items-center border-t-2 border-transparent border-r border-[#333] min-w-max cursor-pointer hover:bg-[#1e1e1e] hover:text-gray-200 group transition-colors';
+                
+                tabEl.draggable = true;
+                tabEl.ondragstart = (e) => {
+                    e.dataTransfer.setData('text/plain', index);
+                    tabEl.style.opacity = '0.4';
+                };
+                tabEl.ondragend = () => tabEl.style.opacity = '1';
+                tabEl.ondragover = (e) => e.preventDefault();
+                tabEl.ondrop = (e) => {
+                    e.preventDefault();
+                    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                    if (fromIndex !== index && !isNaN(fromIndex)) {
+                        const [movedTab] = openTabs.splice(fromIndex, 1);
+                        openTabs.splice(index, 0, movedTab);
+                        renderTabs();
+                    }
+                };
+
+                tabEl.onclick = () => { if(!isActive) loadFileFromR2(tab); };
+                
+                const ext = tab.split('.').pop().toLowerCase();
+                let icon = 'fa-solid fa-file-code text-gray-400';
+                if(ext === 'html') icon = 'fa-brands fa-html5 text-blue-400';
+                else if(ext === 'css') icon = 'fa-brands fa-css3 text-blue-300';
+                else if(ext === 'js') icon = 'fa-brands fa-js text-yellow-400';
+                else if(ext === 'ts') icon = 'fa-brands fa-js text-blue-400';
+                else if(ext === 'py') icon = 'fa-brands fa-python text-blue-500';
+                else if(ext === 'json') icon = 'fa-solid fa-code text-green-400';
+
+                tabEl.innerHTML = `
+                    <i class="${icon} mr-2"></i> <span>${tab}</span>
+                    <button onclick="closeTab(event, '${tab}')" class="ml-2 w-4 h-4 rounded hover:bg-gray-600 flex items-center justify-center ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity" title="Fechar">
+                        <i class="fa-solid fa-xmark text-[10px] ${isActive ? 'text-gray-300' : 'text-gray-400'}"></i>
+                    </button>
+                `;
+                
+                list.appendChild(tabEl);
+            });
+        }
+
+        function closeTab(e, fileName) {
+            e.stopPropagation(); 
+            openTabs = openTabs.filter(t => t !== fileName);
+            
+            if (currentFileKey === fileName) {
+                if (openTabs.length > 0) {
+                    loadFileFromR2(openTabs[openTabs.length - 1]);
+                } else {
+                    currentFileKey = '';
+                    editorInstance.setValue('/* Crie ou abra um ficheiro para começar */');
+                    renderTabs();
+                    updateLiveUrlDisplay();
+                }
+            } else {
+                renderTabs();
+            }
+        }
+
+        function toggleLanguageMenu() {
+            document.getElementById('language-menu').classList.toggle('hidden-element');
+        }
+
+        function changeLanguage(langId) {
+            if (!editorInstance) return;
+            monaco.editor.setModelLanguage(editorInstance.getModel(), langId);
+            updateLanguageDisplay(langId);
+            document.getElementById('language-menu').classList.add('hidden-element');
+        }
+
+        function updateLanguageDisplay(langId) {
+            const btn = document.getElementById('current-language-btn');
+            
+            const map = {
+                'html': { text: 'HTML' },
+                'css': { text: 'CSS' },
+                'javascript': { text: 'JavaScript' },
+                'typescript': { text: 'TypeScript' },
+                'python': { text: 'Python' },
+                'json': { text: 'JSON' },
+                'plaintext': { text: 'Texto Simples' }
+            };
+            
+            const info = map[langId] || { text: langId.toUpperCase() };
+            btn.innerHTML = `${info.text} <i class="fa-solid fa-chevron-up text-[9px]"></i>`;
+        }
+
+        async function loadFileFromR2(fileName) {
+            try {
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Carregando...';
+                
+                const params = {
+                    Bucket: R2_BUCKET,
+                    Key: getR2Prefix() + fileName
+                };
+                const data = await s3.getObject(params).promise();
+                const content = data.Body.toString('utf-8');
+                
+                currentFileKey = fileName;
+                updateLiveUrlDisplay();
+                
+                const ext = fileName.split('.').pop().toLowerCase();
+                let lang = 'plaintext';
+                if(ext === 'html') lang = 'html';
+                else if(ext === 'js') lang = 'javascript';
+                else if(ext === 'ts') lang = 'typescript';
+                else if(ext === 'css') lang = 'css';
+                else if(ext === 'py') lang = 'python';
+                else if(ext === 'json') lang = 'json';
+                
+                monaco.editor.setModelLanguage(editorInstance.getModel(), lang);
+                updateLanguageDisplay(lang);
+                
+                if (!openTabs.includes(fileName)) {
+                    openTabs.push(fileName);
+                }
+                
+                isLoadingFile = true; 
+                editorInstance.setValue(content);
+                isLoadingFile = false;
+                
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-cloud-arrow-up mr-1"></i> Sincronizado';
+                renderFileList();
+                renderTabs(); 
+            } catch (error) {
+                showToast("Erro ao abrir ficheiro.");
+                console.error(error);
+            }
+        }
+
+        async function saveCurrentFile(isAutoSave = false) {
+            if(!editorInstance || !currentFileKey) return;
+            const content = editorInstance.getValue();
+            await saveToR2(currentFileKey, content, isAutoSave);
+        }
+
+        async function saveToR2(fileName, content, isAutoSave = false) {
+            document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Salvando...';
+            try {
+                const params = {
+                    Bucket: R2_BUCKET,
+                    Key: getR2Prefix() + fileName,
+                    Body: content,
+                    ContentType: getContentType(fileName)
+                };
+                await s3.putObject(params).promise();
+                
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-check text-green-400 mr-1"></i> Salvo';
+                
+                if (!isAutoSave) {
+                    showToast("Ficheiro salvo com sucesso!");
+                }
+                
+                if(!localFiles.find(f => f.Key === getR2Prefix() + fileName)) {
+                    loadUserWorkspace();
+                }
+            } catch (error) {
+                document.getElementById('sync-status').innerHTML = '<i class="fa-solid fa-triangle-exclamation text-red-400 mr-1"></i> Erro';
+                if (!isAutoSave) {
+                    showToast("Erro ao salvar no R2.");
+                }
+                console.error(error);
+            }
+        }
+
+        function getContentType(fileName) {
+            if(fileName.endsWith('.html')) return 'text/html';
+            if(fileName.endsWith('.css')) return 'text/css';
+            if(fileName.endsWith('.js')) return 'application/javascript';
+            if(fileName.endsWith('.json')) return 'application/json';
+            return 'text/plain';
+        }
+
+        // --- FUNÇÕES DE CRIAÇÃO E PUBLICAÇÃO (NOVOS MODAIS) ---
+        
+        function createNewFile() {
+            openModal('new-file-modal');
+            setTimeout(() => document.getElementById('new-filename-input').focus(), 100);
+        }
+
+        async function confirmNewFile() {
+            let name = document.getElementById('new-filename-input').value.trim();
+            const ext = document.getElementById('new-file-tech-select').value;
+            
+            if (!name) {
+                showToast("O nome do ficheiro não pode estar vazio!");
+                return;
+            }
+
+            // Remove a extensão caso o utilizador a tenha escrito por engano
+            name = name.replace(/\.[^/.]+$/, "");
+            const safeName = name + ext;
+            closeModal();
+
+            // Boilerplate/Template base para o tipo de tecnologia escolhida
+            let initialContent = "/* Novo Ficheiro */\n";
+            if (ext === '.html') {
+                initialContent = `<!DOCTYPE html>\n<html lang="pt-BR">\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  \n</body>\n</html>`;
+            } else if (ext === '.js') {
+                initialContent = `// Novo ficheiro JavaScript\n`;
+            } else if (ext === '.py') {
+                initialContent = `# Novo ficheiro Python\n`;
+            } else if (ext === '.css') {
+                initialContent = `/* Novo ficheiro CSS */\n`;
+            }
+
+            await saveToR2(safeName, initialContent, false); 
+            await loadFileFromR2(safeName); 
+            showToast("Ficheiro criado com sucesso!");
+        }
+
+        function publishToCommunity() {
+            if(!editorInstance) return;
+            openModal('publish-modal');
+            setTimeout(() => document.getElementById('publish-title-input').focus(), 100);
+        }
+
+        async function confirmPublish() {
+            const title = document.getElementById('publish-title-input').value.trim();
+            if(!title) {
+                showToast("O título não pode estar vazio!");
+                return;
+            }
+
+            const mainCode = editorInstance.getValue();
+            closeModal();
+
+            try {
+                await window.addDoc(window.collection(window.firebaseDb, "public_projects"), {
+                    title: title,
+                    authorEmail: currentUser.email,
+                    authorId: currentUser.uid,
+                    code: mainCode,
+                    timestamp: new Date().toISOString()
+                });
+                showToast("Projeto publicado na Comunidade!");
+                if(document.getElementById('tab-community').classList.contains('tab-active')){
+                    loadCommunityProjects();
+                }
+            } catch (e) {
+                console.error(e);
+                showToast("Erro ao publicar projeto.");
+            }
+        }
+
+        async function uploadFolder(event) {
+            const files = event.target.files;
+            if(files.length === 0) return;
+            
+            showToast(`Iniciando upload de ${files.length} arquivos...`);
+            
+            for(let i=0; i<files.length; i++) {
+                const file = files[i];
+                const path = file.webkitRelativePath || file.name;
+                const content = await file.text();
+                await saveToR2(path, content);
+            }
+            
+            showToast("Upload de pasta concluído!");
+            loadUserWorkspace();
+            event.target.value = ''; 
+        }
+
+        async function downloadWorkspace() {
+            if(localFiles.length === 0) {
+                showToast("Nenhum arquivo para baixar.");
+                return;
+            }
+            showToast("Gerando ZIP...");
+            const zip = new JSZip();
+            
+            for(const file of localFiles) {
+                const fileName = file.Key.replace(getR2Prefix(), '');
+                const params = { Bucket: R2_BUCKET, Key: file.Key };
+                const data = await s3.getObject(params).promise();
+                zip.file(fileName, data.Body);
+            }
+            
+            zip.generateAsync({type:"blob"}).then(function(content) {
+                saveAs(content, "cod-solutions-workspace.zip");
+                showToast("Download iniciado!");
+            });
+        }
+
+        function switchSidebarTab(tab) {
+            const btnFiles = document.getElementById('tab-files');
+            const btnComm = document.getElementById('tab-community');
+            const secFiles = document.getElementById('sidebar-files');
+            const secComm = document.getElementById('sidebar-community');
+
+            if(tab === 'files') {
+                btnFiles.className = "flex-1 py-2 text-center text-xs font-semibold tab-active";
+                btnComm.className = "flex-1 py-2 text-center text-xs font-semibold tab-inactive";
+                secFiles.classList.remove('hidden-element');
+                secComm.classList.add('hidden-element');
+            } else {
+                btnComm.className = "flex-1 py-2 text-center text-xs font-semibold tab-active";
+                btnFiles.className = "flex-1 py-2 text-center text-xs font-semibold tab-inactive";
+                secComm.classList.remove('hidden-element');
+                secFiles.classList.add('hidden-element');
+                loadCommunityProjects();
+            }
+        }
+
+        async function loadCommunityProjects() {
+            const list = document.getElementById('community-list');
+            list.innerHTML = '<div class="text-center p-2 text-gray-500 text-xs">Carregando comunidade...</div>';
+            
+            try {
+                const q = window.query(window.collection(window.firebaseDb, "public_projects"));
+                const querySnapshot = await window.getDocs(q);
+                list.innerHTML = '';
+                
+                if(querySnapshot.empty) {
+                    list.innerHTML = '<div class="text-center p-2 text-gray-500 text-xs">Nenhum projeto ainda.</div>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    
+                    const card = document.createElement('div');
+                    card.className = "bg-[#2d2d2d] border border-[#3c3c3c] rounded p-3 hover:border-[#007acc] transition";
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-blue-400 font-bold text-sm truncate" title="${data.title}">${data.title}</h3>
+                            <i class="fa-solid fa-globe text-gray-500 text-xs"></i>
+                        </div>
+                        <div class="text-[10px] text-gray-400 mb-3 flex items-center gap-1">
+                            <i class="fa-solid fa-user"></i> ${data.authorEmail}
+                        </div>
+                        <button onclick="cloneProject('${doc.id}')" class="w-full bg-[#3c3c3c] hover:bg-[#4a4a4a] text-white text-xs py-1.5 rounded transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-copy"></i> Copiar Código
+                        </button>
+                    `;
+                    list.appendChild(card);
+                    
+                    window[`cloneData_${doc.id}`] = data.code;
+                });
+            } catch (e) {
+                console.error(e);
+                list.innerHTML = '<div class="text-red-400 text-xs text-center">Erro ao carregar projetos.</div>';
+            }
+        }
+
+        function cloneProject(docId) {
+            const code = window[`cloneData_${docId}`];
+            if(code) {
+                editorInstance.setValue(code);
+                switchSidebarTab('files');
+                showToast("Código copiado! Pressione Ctrl+S para salvar no seu R2.");
+            }
+        }
+    </script>
+</body>
+</html>
