@@ -1806,7 +1806,7 @@
         }
 
  // --- SISTEMA DE INTELIGÊNCIA ARTIFICIAL: OPENROUTER API ---
-        const OPENROUTER_API_KEY = "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";
+        const OPENROUTER_API_KEY = "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";
         
         function toggleAiSidebar() {
             const sidebar = document.getElementById('ai-sidebar');
@@ -1908,7 +1908,7 @@
                         "X-Title": "COD Solutions Editor" 
                     },
                     body: JSON.stringify({
-                        "model": "google/gemini-2.0-flash-exp:free", 
+                        "model": "nvidia/nemotron-3-nano-30b-a3b:free", 
                         "messages": [
                             { "role": "user", "content": finalPrompt }
                         ]
