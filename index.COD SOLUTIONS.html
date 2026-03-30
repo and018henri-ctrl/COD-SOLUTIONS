@@ -1806,7 +1806,7 @@
         }
 
  // --- SISTEMA DE INTELIGÊNCIA ARTIFICIAL: OPENROUTER API ---
-        const OPENROUTER_API_KEY = "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";
+        const OPENROUTER_API_KEY = "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";
         
         function toggleAiSidebar() {
             const sidebar = document.getElementById('ai-sidebar');
@@ -1898,7 +1898,7 @@
             const finalPrompt = `Atue como um Desenvolvedor Senior de Elite.\n\n-> INSTRUÇÃO DO USUÁRIO: "${textInstrucao}"\n${extrasParaAPI}\n\n-> CÓDIGO ATUAL ABERTO NO EDITOR DA TELA:\n\`\`\`\n${editorCode}\n\`\`\`\n\nTAREFA CRÍTICA: Leia o "CÓDIGO ATUAL" acima, aplique a instrução e integre/substitua usando os códigos fornecidos.\nREGRA 1: Diga rapidamente o que foi feito em 1 frase.\nREGRA 2: Retorne OBRIGATORIAMENTE o código COMPLETO do ficheiro atualizado e pronto a usar dentro de APENAS UM bloco markdown (\`\`\`).`;
 
             try {
-                // Trocado o modelo instável pelo Gemini 2.0 Flash Exp no OpenRouter. É extremamente rápido e grátis.
+                // MODELO ATUALIZADO: Usamos a versão experimental da Google no OpenRouter (Grátis, Estável e com janela de 1 Milhão de Tokens!)
                 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                     method: "POST",
                     headers: {
@@ -1908,7 +1908,7 @@
                         "X-Title": "COD Solutions Editor" 
                     },
                     body: JSON.stringify({
-                        "model": "nvidia/nemotron-3-nano-30b-a3b:free", 
+                        "model": "google/gemini-2.0-flash-exp:free", 
                         "messages": [
                             { "role": "user", "content": finalPrompt }
                         ]
@@ -1941,7 +1941,7 @@
             } catch (error) { 
                 console.error(error);
                 let msg = error.message;
-                if (error.message.includes("Failed to fetch")) msg = "A ligação caiu (Time Out). O ficheiro pode ser muito grande ou a internet falhou. Tente novamente.";
+                if (error.message.includes("Failed to fetch")) msg = "A ligação caiu (Time Out). O ficheiro pode ser demasiado grande ou o servidor da OpenRouter pode estar temporariamente em baixo. Tente novamente.";
                 appendAjudaMessage('bot', `<span class="text-red-400">⚠️ Erro: ${msg}</span>`, true); 
             } finally { 
                 btn.innerHTML = 'Ajustar Código <i class="fa-solid fa-wand-magic-sparkles"></i>'; 
