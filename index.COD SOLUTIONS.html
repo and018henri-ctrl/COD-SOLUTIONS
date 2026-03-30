@@ -1805,8 +1805,8 @@
             event.target.value = ''; 
         }
 
- // --- SISTEMA DE INTELIGÊNCIA ARTIFICIAL: OPENROUTER API ---
-        const OPENROUTER_API_KEY = "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";
+ // --- SISTEMA DE INTELIGÊNCIA ARTIFICIAL: NVIDIA API (DEEPSEEK V3.2) ---
+        const NVIDIA_API_KEY = "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";
         
         function toggleAiSidebar() {
             const sidebar = document.getElementById('ai-sidebar');
@@ -1837,7 +1837,6 @@
             const div = document.createElement('div');
             if (sender === 'user') { 
                 div.className = 'ai-message ai-user self-end w-[90%] bg-[#2d2d2d] border-[#444] text-gray-200'; 
-                // Se for isHtml, permite desenhar caixinhas dentro da mensagem do user
                 div.innerHTML = isHtml ? text : text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); 
             } else { 
                 div.className = 'ai-message ai-bot self-start w-[95%] bg-[#1a1a1a] border-[#333] border-l-blue-500'; 
@@ -1854,7 +1853,7 @@
             if(typeof showToast === "function") showToast("Ficheiro reescrito com sucesso!");
         }
 
-        // --- ENVIAR PARA O OPENROUTER ---
+        // --- ENVIAR PARA A API OFICIAL DA NVIDIA ---
         async function sendAjudaMessage() {
             if (!editorInstance) {
                 if(typeof showToast === "function") showToast("Abra um ficheiro no editor primeiro!");
@@ -1868,7 +1867,7 @@
             let extrasParaAPI = "";
             let extrasParaVisualizar = "";
             
-            // Recolhe os códigos colados e prepara-os tanto para o envio à API como para a visualização no balão do utilizador
+            // Puxa as caixas e formata visualmente
             codeInputs.forEach((input, i) => { 
                 const blockValue = input.value.trim();
                 if (blockValue) {
@@ -1880,14 +1879,13 @@
             
             if (!textInstrucao && !extrasParaAPI) return; 
 
-            // Renderiza a mensagem do usuário no chat com as caixas extras visíveis
+            // Renderiza mensagem do usuário
             let mensagemParaApresentar = textInstrucao ? `<div>${textInstrucao.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>` : `<div><i>[Apenas códigos fornecidos]</i></div>`;
             if (extrasParaVisualizar) {
                 mensagemParaApresentar += extrasParaVisualizar;
             }
             appendAjudaMessage('user', mensagemParaApresentar, true);
 
-            // Limpa os campos
             instrucaoInput.value = ''; document.getElementById('ai-ajuda-blocos-extra').innerHTML = '';
 
             const btn = document.getElementById('btn-send-ajuda'); 
@@ -1898,28 +1896,29 @@
             const finalPrompt = `Atue como um Desenvolvedor Senior de Elite.\n\n-> INSTRUÇÃO DO USUÁRIO: "${textInstrucao}"\n${extrasParaAPI}\n\n-> CÓDIGO ATUAL ABERTO NO EDITOR DA TELA:\n\`\`\`\n${editorCode}\n\`\`\`\n\nTAREFA CRÍTICA: Leia o "CÓDIGO ATUAL" acima, aplique a instrução e integre/substitua usando os códigos fornecidos.\nREGRA 1: Diga rapidamente o que foi feito em 1 frase.\nREGRA 2: Retorne OBRIGATORIAMENTE o código COMPLETO do ficheiro atualizado e pronto a usar dentro de APENAS UM bloco markdown (\`\`\`).`;
 
             try {
-                // MODELO ATUALIZADO: Usamos a versão experimental da Google no OpenRouter (Grátis, Estável e com janela de 1 Milhão de Tokens!)
-                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                // TÚNEL CORS ADICIONADO AQUI 👇
+                const response = await fetch("https://corsproxy.io/?https://integrate.api.nvidia.com/v1/chat/completions", {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+                        "Authorization": `Bearer ${NVIDIA_API_KEY}`,
                         "Content-Type": "application/json",
-                        "HTTP-Referer": "https://codsolutions.app", 
-                        "X-Title": "COD Solutions Editor" 
+                        "Accept": "application/json"
                     },
                     body: JSON.stringify({
-                        "model": "google/gemini-2.0-flash-exp:free", 
+                        "model": "nvidia/llama-3.1-nemotron-70b-instruct", 
                         "messages": [
                             { "role": "user", "content": finalPrompt }
-                        ]
+                        ],
+                        "temperature": 0.2, 
+                        "max_tokens": 4000 
                     })
                 });
 
                 const data = await response.json();
 
                 if (!response.ok) {
-                    console.error("Erro OpenRouter:", data);
-                    throw new Error(data.error?.message || "O servidor da API recusou a ligação.");
+                    console.error("Erro NVIDIA API:", data);
+                    throw new Error(data.detail || data.title || "O servidor da API recusou a ligação. Verifique o limite da conta NVIDIA.");
                 }
                 
                 if(!data.choices || !data.choices[0].message) throw new Error("A API não retornou código válido.");
@@ -1941,13 +1940,12 @@
             } catch (error) { 
                 console.error(error);
                 let msg = error.message;
-                if (error.message.includes("Failed to fetch")) msg = "A ligação caiu (Time Out). O ficheiro pode ser demasiado grande ou o servidor da OpenRouter pode estar temporariamente em baixo. Tente novamente.";
+                if (error.message.includes("Failed to fetch")) msg = "A ligação com a NVIDIA falhou. Verifique a sua internet ou bloqueador de anúncios.";
                 appendAjudaMessage('bot', `<span class="text-red-400">⚠️ Erro: ${msg}</span>`, true); 
             } finally { 
                 btn.innerHTML = 'Ajustar Código <i class="fa-solid fa-wand-magic-sparkles"></i>'; 
             }
         }
-
     </script>
 </body>
 </html>
